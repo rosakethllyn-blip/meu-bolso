@@ -219,7 +219,7 @@ function billDueDate(b,p){
   const last=new Date(y,m,0).getDate(); return `${p}-${String(Math.min(day,last)).padStart(2,"0")}`;
 }
 function billPaid(b,p){ return data.payments.some(x=>x.bill_id===b.id && x.period===p); }
-function billsForPeriod(){ return data.bills.filter(b=>billInPeriod(b,period)).map(b=>({...b, _due:billDueDate(b,period), _paid:billPaid(b,period)})).sort((a,b)=>a._due.localeCompare(b._due)); }
+function billsForPeriod(){ return data.bills.filter(b=>billInPeriod(b,period)).map(b=>({...b, _due:billDueDate(b,period), _paid:billPaid(b,period)})).sort((a,b)=> (a._paid-b._paid) || a._due.localeCompare(b._due)); }
 function billStatus(b){ if(b._paid) return "paid"; const du=daysUntil(b._due); if(du<0) return "late"; if(du<=5) return "due"; return "next"; }
 // Contas marcadas como pagas contam como despesas do mês.
 function paidBillsForPeriod(){ return billsForPeriod().filter(b=>b._paid).map(b=>({ category:b.category||"Outros", amount:Number(b.amount), date:b._due })); }
@@ -345,7 +345,7 @@ async function loadEvolution(){
 function billRow(b){
   const st = billStatus(b);
   const pill = st==="paid"?`<span class="pill paid">Paga</span>`: st==="late"?`<span class="pill late">Vencida</span>`: st==="due"?`<span class="pill due">Vence ${fmtDate(b._due)}</span>`:"";
-  return `<div class="item" data-bill="${b.id}">
+  return `<div class="item ${b._paid?"paid-row":""}" data-bill="${b.id}">
     <button class="chk ${b._paid?"on":""}" data-pay="${b.id}" aria-label="Marcar paga">✓</button>
     <div class="grow"><div class="t1">${esc(b.name)}${b.recurring?' <span style="color:var(--muted);font-weight:400">· mensal</span>':""}</div>
       <div class="t2">Vence ${fmtDate(b._due)} · ${esc(b.category||"—")}</div></div>

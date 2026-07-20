@@ -149,6 +149,8 @@
   .pill.late{background:var(--neg-soft);color:var(--neg)}
   .mini{background:none;border:0;color:var(--muted);cursor:pointer;padding:6px;border-radius:8px;font-size:13px}
   .mini:hover{color:var(--ink);background:var(--surface-2)}
+  .item.paid-row{opacity:.45}
+  .item.paid-row .amt{text-decoration:line-through;text-decoration-color:var(--muted)}
 
   /* progress */
   .bar{height:9px;border-radius:20px;background:var(--line);overflow:hidden;margin-top:8px}
@@ -325,6 +327,12 @@
 <div id="modal-root"></div>
 <div id="toast" class="toast"></div>
 
-<script type="module" src="app.js"></script>
+<script type="module">
+  // Carrega sempre a versão mais recente (evita cache antigo do navegador)
+  import(`./app.js?v=${Date.now()}`).catch(err=>{
+    document.getElementById("screen-loading").innerHTML =
+      '<div style="text-align:center;padding:24px;color:var(--muted)">Não foi possível carregar o app. Verifique sua conexão e recarregue a página.<br><small>'+ (err && err.message || "") +'</small></div>';
+  });
+</script>
 </body>
 </html>
