@@ -173,6 +173,9 @@
   .tabbar a.active{color:var(--accent-ink)}
   .tabbar a.active .tico{background:var(--accent-soft)}
   .tico{width:30px;height:30px;border-radius:10px;display:grid;place-items:center}
+  .tico svg{width:22px;height:22px}
+  .ic{flex:none;vertical-align:-.15em}
+  .alert-bar .ic{flex:none}
   @media(min-width:860px){
     .tabbar{top:0; right:auto; width:230px; flex-direction:column; padding:18px 14px;
       border-top:0; border-right:1px solid var(--line); gap:4px}
@@ -231,7 +234,7 @@
 <!-- LOADING -->
 <div id="screen-loading" class="center-load">
   <div style="text-align:center">
-    <div class="brand-badge" style="margin:0 auto 12px">💰</div>
+    <div class="brand-badge" style="margin:0 auto 12px"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/><path d="M21 12h-6a2 2 0 0 0 0 4h6v-4z"/></svg></div>
     <div>Carregando o Meu Bolso…</div>
   </div>
 </div>
@@ -290,12 +293,12 @@
 <!-- APP -->
 <div id="screen-app" class="hidden">
   <nav class="tabbar" id="tabbar">
-    <div class="side-brand"><span class="side-brand-badge">💰</span> Meu Bolso</div>
-    <a data-tab="inicio" class="active"><span class="tico">🏠</span>Início</a>
-    <a data-tab="contas"><span class="tico">📄</span>Contas</a>
-    <a data-tab="lancar"><span class="tico">＋</span>Lançar</a>
-    <a data-tab="orcamento"><span class="tico">🎯</span>Orçamento</a>
-    <a data-tab="metas"><span class="tico">🐷</span>Metas</a>
+    <div class="side-brand"><span class="side-brand-badge"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/><path d="M21 12h-6a2 2 0 0 0 0 4h6v-4z"/></svg></span> Meu Bolso</div>
+    <a data-tab="inicio" class="active"><span class="tico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/></svg></span>Início</a>
+    <a data-tab="contas"><span class="tico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1Z"/><path d="M16 8h-6a2 2 0 1 0 0 4h4a2 2 0 1 1 0 4H8"/><path d="M12 17.5v-11"/></svg></span>Contas</a>
+    <a data-tab="lancar"><span class="tico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/></svg></span>Lançar</a>
+    <a data-tab="orcamento"><span class="tico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="6"/><circle cx="12" cy="12" r="2"/></svg></span>Orçamento</a>
+    <a data-tab="metas"><span class="tico"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2V5z"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/><path d="M16 11h.01"/></svg></span>Metas</a>
   </nav>
 
   <header class="topbar">

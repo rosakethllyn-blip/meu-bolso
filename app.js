@@ -32,6 +32,19 @@ function fmtDate(s){ const [y,m,d]=s.split("-"); return `${d}/${m}`; }
 function daysUntil(s){ const t=new Date(todayStr()); const d=new Date(s); return Math.round((d-t)/86400000); }
 function esc(s){ return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
 
+/* Ícones outline (Lucide, licença ISC) */
+const ICON = {
+  user:'<path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>',
+  tag:'<path d="M12.586 2.586A2 2 0 0 0 11.172 2H4a2 2 0 0 0-2 2v7.172a2 2 0 0 0 .586 1.414l8.704 8.704a2 2 0 0 0 2.828 0l6.586-6.586a2 2 0 0 0 0-2.828z"/><circle cx="7.5" cy="7.5" r="1.5"/>',
+  logout:'<path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/>',
+  alert:'<path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/>',
+  clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+  check:'<path d="M21.8 10A10 10 0 1 1 17 3.3"/><path d="m9 11 3 3L22 4"/>',
+  piggy:'<path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2V5z"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/><path d="M16 11h.01"/>',
+  edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>'
+};
+function ic(name, size=18){ return `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]||""}</svg>`; }
+
 /* ---------------- Toast ---------------- */
 let toastT;
 function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); clearTimeout(toastT); toastT=setTimeout(()=>t.classList.remove("show"),2200); }
@@ -141,7 +154,7 @@ function renderOnboarding(){
     $("#ob-next").onclick = () => { obStep=1; renderOnboarding(); };
   } else if(obStep===1){
     card.innerHTML = steps + `
-      <div class="ob-illu">👋</div>
+      <div class="ob-illu">${ic('user',30)}</div>
       <h2>Como podemos te chamar?</h2>
       <p>E, se quiser, quanto costuma receber por mês. (Pode deixar em branco.)</p>
       <div class="field"><label>Seu nome</label><input class="input" id="ob-name" placeholder="Seu nome" value="${esc(obData.name)}"></div>
@@ -155,7 +168,7 @@ function renderOnboarding(){
   } else {
     const cats = ["Alimentação","Moradia","Transporte","Saúde","Educação","Lazer","Compras","Contas","Assinaturas"];
     card.innerHTML = steps + `
-      <div class="ob-illu">🏷️</div>
+      <div class="ob-illu">${ic('tag',30)}</div>
       <h2>Suas categorias já estão prontas</h2>
       <p>Deixamos estas categorias sugeridas criadas para você. Dá para adicionar ou remover quando quiser, no menu.</p>
       <div class="cat-pick">${cats.map(c=>`<span class="cat-chip on">${c}</span>`).join("")}</div>
@@ -247,12 +260,12 @@ function renderInicio(m){
   const due = bills.filter(b=>billStatus(b)==="due");
   const upcoming = bills.filter(b=>!b._paid).slice(0,4);
 
-  let html = `<h1 class="page-title">Olá${state.profile.name?`, ${esc(state.profile.name.split(" ")[0])}`:""} 👋</h1>`;
+  let html = `<h1 class="page-title">Olá${state.profile.name?`, ${esc(state.profile.name.split(" ")[0])}`:""}</h1>`;
 
   if(late.length || due.length){
     html += `<div style="margin-bottom:10px">`;
-    if(late.length) html += `<div class="alert-bar late">⚠️ ${late.length} conta(s) vencida(s) — ${money(late.reduce((s,b)=>s+ +b.amount,0))}</div>`;
-    if(due.length) html += `<div class="alert-bar due">⏰ ${due.length} conta(s) vencendo em breve</div>`;
+    if(late.length) html += `<div class="alert-bar late">${ic('alert',16)} ${late.length} conta(s) vencida(s) — ${money(late.reduce((s,b)=>s+ +b.amount,0))}</div>`;
+    if(due.length) html += `<div class="alert-bar due">${ic('clock',16)} ${due.length} conta(s) vencendo em breve</div>`;
     html += `</div>`;
   }
 
@@ -270,7 +283,7 @@ function renderInicio(m){
 
   // Próximas contas
   html += `<div class="section"><div class="row-head"><h2>Próximas contas</h2><button class="mini" id="go-contas">ver todas ›</button></div>`;
-  if(!upcoming.length) html += `<div class="empty">Nenhuma conta em aberto neste mês 🎉</div>`;
+  if(!upcoming.length) html += `<div class="empty">${ic('check',22)}<div>Nenhuma conta em aberto neste mês</div></div>`;
   else html += upcoming.map(b=>billRow(b)).join("");
   html += `</div>`;
 
@@ -338,7 +351,7 @@ function billRow(b){
       <div class="t2">Vence ${fmtDate(b._due)} · ${esc(b.category||"—")}</div></div>
     ${pill}
     <div class="amt num">${money(b.amount)}</div>
-    <button class="mini" data-editbill="${b.id}">✎</button>
+    <button class="mini" data-editbill="${b.id}">${ic('edit',15)}</button>
   </div>`;
 }
 function bindBillRows(root){
@@ -380,7 +393,7 @@ function renderLancar(m){
       <div class="grow"><div class="t1">${esc(t.description||t.category||(t.type==="income"?"Receita":"Despesa"))}</div>
         <div class="t2">${esc(t.category||"—")} · ${fmtDate(t.date)}</div></div>
       <div class="amt num" style="color:${t.type==="income"?"var(--pos)":"var(--neg)"}">${t.type==="income"?"+":"−"}${money(t.amount)}</div>
-      <button class="mini" data-edittx="${t.id}">✎</button>
+      <button class="mini" data-edittx="${t.id}">${ic('edit',15)}</button>
     </div>`;
   }).join("");
   html += `</div>`;
@@ -405,7 +418,7 @@ function renderOrcamento(m){
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
         <div style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:${color}"></span><b>${esc(bd.category)}</b></div>
         <div style="display:flex;align-items:center;gap:8px"><span class="num" style="font-size:13.5px;color:${over?"var(--neg)":"var(--muted)"}">${money(spent)} / ${money(lim)}</span>
-        <button class="mini" data-editbud="${esc(bd.category)}">✎</button></div>
+        <button class="mini" data-editbud="${esc(bd.category)}">${ic('edit',15)}</button></div>
       </div>
       <div class="bar ${over?"over":""}"><span style="width:${pct}%"></span></div>
       ${over?`<div style="font-size:12px;color:var(--neg);margin-top:5px">Estourou ${money(spent-lim)}</div>`:""}
@@ -433,7 +446,7 @@ function renderMetas(m){
         <span class="num" style="color:var(--muted);font-size:13.5px">${money(g.saved)} de ${money(g.target)}</span>
         <div style="display:flex;gap:6px">
           <button class="btn sm ghost" data-contrib="${g.id}">＋ Guardar</button>
-          <button class="mini" data-editgoal="${g.id}">✎</button>
+          <button class="mini" data-editgoal="${g.id}">${ic('edit',15)}</button>
         </div>
       </div></div>`;
   }).join("");
@@ -568,7 +581,7 @@ function openContribModal(goal){
   openModal("Guardar dinheiro", body, async(close)=>{
     const add=Number($("#c-amt").value); if(!add) return;
     await sb.from("goals").update({ saved:Number(goal.saved)+add }).eq("id",goal.id);
-    close(); toast("Guardado! 🐷"); await refresh();
+    close(); toast("Guardado!"); await refresh();
   });
 }
 
@@ -583,7 +596,7 @@ $("#bell").onclick = () => {
   const body = items.length ? items.map(b=>`<div class="item"><button class="chk" data-pay="${b.id}">✓</button>
       <div class="grow"><div class="t1">${esc(b.name)}</div><div class="t2">${billStatus(b)==="late"?"Vencida":"Vence"} ${fmtDate(b._due)}</div></div>
       <div class="amt num">${money(b.amount)}</div></div>`).join("")
-    : `<div class="empty">Tudo em dia por aqui! 🎉</div>`;
+    : `<div class="empty">${ic('check',22)}<div>Tudo em dia por aqui!</div></div>`;
   openModal("Contas para atenção", body+`<button class="btn ghost" type="button" id="bell-close" style="margin-top:14px">Fechar</button>`, async()=>{}, ()=>{
     $("#bell-close").onclick=()=>$("#modal-root").firstElementChild && ($("#modal-root").innerHTML="");
     $$("[data-pay]").forEach(el=> el.onclick = async ()=>{ await togglePaid(el.dataset.pay); $("#bell").click(); });
@@ -591,8 +604,8 @@ $("#bell").onclick = () => {
 };
 $("#menu-btn").onclick = () => {
   const body=`
-    <button class="btn ghost" type="button" id="mm-cats" style="justify-content:flex-start;margin-bottom:8px">🏷️ Gerenciar categorias</button>
-    <button class="btn ghost" type="button" id="mm-logout" style="justify-content:flex-start">🚪 Sair da conta</button>`;
+    <button class="btn ghost" type="button" id="mm-cats" style="justify-content:flex-start;margin-bottom:8px">${ic('tag',18)} Gerenciar categorias</button>
+    <button class="btn ghost" type="button" id="mm-logout" style="justify-content:flex-start">${ic('logout',18)} Sair da conta</button>`;
   openModal(state.profile.name?`Olá, ${esc(state.profile.name.split(" ")[0])}`:"Menu", body, async()=>{}, ()=>{
     $("#mm-logout").onclick=async()=>{ await sb.auth.signOut(); location.reload(); };
     $("#mm-cats").onclick=()=>{ $("#modal-root").innerHTML=""; openCatsModal(); };
