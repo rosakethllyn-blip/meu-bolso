@@ -208,12 +208,16 @@ function billDueDate(b,p){
 function billPaid(b,p){ return data.payments.some(x=>x.bill_id===b.id && x.period===p); }
 function billsForPeriod(){ return data.bills.filter(b=>billInPeriod(b,period)).map(b=>({...b, _due:billDueDate(b,period), _paid:billPaid(b,period)})).sort((a,b)=>a._due.localeCompare(b._due)); }
 function billStatus(b){ if(b._paid) return "paid"; const du=daysUntil(b._due); if(du<0) return "late"; if(du<=5) return "due"; return "next"; }
+// Contas marcadas como pagas contam como despesas do mês.
+function paidBillsForPeriod(){ return billsForPeriod().filter(b=>b._paid).map(b=>({ category:b.category||"Outros", amount:Number(b.amount), date:b._due })); }
 
 /* Totals */
 function totals(){
   let inc=0, exp=0;
   data.transactions.forEach(t=> t.type==="income" ? inc+=Number(t.amount) : exp+=Number(t.amount));
-  const toPay = billsForPeriod().filter(b=>!b._paid).reduce((s,b)=>s+Number(b.amount),0);
+  const bills = billsForPeriod();
+  exp += bills.filter(b=>b._paid).reduce((s,b)=>s+Number(b.amount),0);
+  const toPay = bills.filter(b=>!b._paid).reduce((s,b)=>s+Number(b.amount),0);
   return { inc, exp, bal:inc-exp, toPay };
 }
 
@@ -278,7 +282,7 @@ function renderInicio(m){
 }
 
 function donutHTML(){
-  const exp = data.transactions.filter(t=>t.type==="expense");
+  const exp = data.transactions.filter(t=>t.type==="expense").map(t=>({category:t.category,amount:Number(t.amount)})).concat(paidBillsForPeriod());
   if(!exp.length) return `<div class="empty">Sem despesas lançadas neste mês.</div>`;
   const map = {};
   exp.forEach(t=>{ const k=t.category||"Outros"; map[k]=(map[k]||0)+Number(t.amount); });
@@ -305,6 +309,9 @@ async function loadEvolution(){
   const months=[]; for(let i=5;i>=0;i--){ months.push(ymOf(new Date(y,m-1-i,1))); }
   const agg={}; months.forEach(mm=>agg[mm]={inc:0,exp:0});
   (rows||[]).forEach(r=>{ const k=r.date.slice(0,7); if(agg[k]){ r.type==="income"?agg[k].inc+=+r.amount:agg[k].exp+=+r.amount; } });
+  // adiciona contas pagas como saídas em cada mês
+  const { data:pays } = await sb.from("bill_payments").select("period,bill_id").gte("period",months[0]).lte("period",period);
+  (pays||[]).forEach(p=>{ const b=data.bills.find(x=>x.id===p.bill_id); if(b && agg[p.period]) agg[p.period].exp += Number(b.amount); });
   const max = Math.max(1, ...months.flatMap(mm=>[agg[mm].inc,agg[mm].exp]));
   const bars = months.map(mm=>{
     const a=agg[mm]; const hi=(a.inc/max*100), he=(a.exp/max*100);
@@ -387,6 +394,7 @@ function renderLancar(m){
 function renderOrcamento(m){
   const spentByCat = {};
   data.transactions.filter(t=>t.type==="expense").forEach(t=>{ const k=t.category||"Outros"; spentByCat[k]=(spentByCat[k]||0)+ +t.amount; });
+  paidBillsForPeriod().forEach(b=>{ spentByCat[b.category]=(spentByCat[b.category]||0)+b.amount; });
   let html = `<div class="row-head"><h1 class="page-title" style="margin:0">Orçamento</h1><button class="btn sm" id="add-budget">＋ Definir limite</button></div>`;
   html += `<div class="section"><div class="sub" style="margin-bottom:14px">Limites de gasto por categoria em ${periodLabel(period)}.</div>`;
   if(!data.budgets.length) html += `<div class="empty">Você ainda não definiu limites. Defina quanto quer gastar por categoria.</div>`;
