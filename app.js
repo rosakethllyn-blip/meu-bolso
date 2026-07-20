@@ -25,7 +25,7 @@ let currentTab = "inicio";
 
 function ymOf(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
 function todayStr(){ return ymOf(new Date())+"-"+String(new Date().getDate()).padStart(2,"0"); }
-function periodLabel(p){ const [y,m]=p.split("-").map(Number); return new Date(y,m-1,1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"}); }
+function periodLabel(p){ const [y,m]=p.split("-").map(Number); const s=new Date(y,m-1,1).toLocaleDateString("pt-BR",{month:"long",year:"numeric"}); return s.charAt(0).toUpperCase()+s.slice(1); }
 function periodBounds(p){ const [y,m]=p.split("-").map(Number); const last=new Date(y,m,0).getDate(); return { start:`${p}-01`, end:`${p}-${String(last).padStart(2,"0")}` }; }
 function shiftPeriod(p,delta){ const [y,m]=p.split("-").map(Number); const d=new Date(y,m-1+delta,1); return ymOf(d); }
 function fmtDate(s){ const [y,m,d]=s.split("-"); return `${d}/${m}`; }
