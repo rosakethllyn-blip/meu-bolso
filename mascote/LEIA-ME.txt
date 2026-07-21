@@ -1,0 +1,15 @@
+Mascote do Meu Bolso
+====================
+
+Coloque aqui 3 imagens PNG (de preferência quadradas, com fundo transparente,
+tamanho recomendado 240x240), com EXATAMENTE estes nomes:
+
+  feliz.png     -> quando a previsão de saldo é boa (vai sobrar dinheiro)
+  atencao.png   -> quando fecha no positivo mas com pouca folga
+  alerta.png    -> quando a previsão é fechar no vermelho (negativo)
+
+Assim que os arquivos existirem, eles aparecem sozinhos no card do início
+(no lugar do emoji temporário). Não precisa mexer em mais nada.
+
+Dica: se quiser trocar/atualizar a imagem depois, mude o número da versão
+no código (?v=1 -> ?v=2) para o navegador pegar a nova na hora.

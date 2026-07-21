@@ -262,6 +262,15 @@ function billsForPeriod(){ return data.bills.filter(b=>billInPeriod(b,period)).m
   }).sort((a,b)=> (a._paid-b._paid) || a._due.localeCompare(b._due)); }
 function billStatus(b){ if(b._paid) return "paid"; const du=daysUntil(b._due); if(du<0) return "late"; if(du<=5) return "due"; return "next"; }
 // Contas marcadas como pagas contam como despesas do mês.
+// Todas as contas do mês (pagas ou não) por categoria — para a "previsão" nos gráficos
+function allBillsExpenses(){
+  const out=[];
+  billsForPeriod().forEach(b=>{
+    if(b._items){ b._items.forEach(it=> out.push({ category: it.category||b.category||"Outros", amount:Number(it.amount)||0 })); }
+    else out.push({ category:b.category||"Outros", amount:Number(b._amount)||0 });
+  });
+  return out;
+}
 function paidBillsForPeriod(){
   const out=[];
   billsForPeriod().filter(b=>b._paid).forEach(b=>{
@@ -310,6 +319,14 @@ function renderInicio(m){
   const due = bills.filter(b=>billStatus(b)==="due");
   const upcoming = bills.filter(b=>!b._paid).slice(0,4);
 
+  // Previsão de saldo no fim do mês = saldo atual − o que ainda falta pagar
+  const previsto = t.bal - t.toPay;
+  let mood, phrase;
+  if(previsto < 0){ mood="alerta"; phrase="Atenção: a previsão é fechar no vermelho. Segure os gastos este mês."; }
+  else if(t.inc>0 && previsto < t.inc*0.1){ mood="atencao"; phrase="Vai fechar no positivo, mas com pouca folga. Fique de olho."; }
+  else { mood="feliz"; phrase="Tudo sob controle — a previsão é sobrar dinheiro este mês!"; }
+  const moodEmoji = { feliz:"😄", atencao:"😟", alerta:"😰" }[mood];
+
   let html = `<h1 class="page-title">Olá${state.profile.name?`, ${esc(state.profile.name.split(" ")[0])}`:""}</h1>`;
 
   if(late.length || due.length){
@@ -319,6 +336,19 @@ function renderInicio(m){
     html += `</div>`;
   }
 
+  // Card do mascote + previsão de saldo
+  html += `<div class="mascot mood-${mood}">
+    <div class="mascot-img">
+      <img src="mascote/${mood}.png?v=1" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'">
+      <div class="mascot-ph" style="display:none">${moodEmoji}</div>
+    </div>
+    <div style="min-width:0">
+      <div class="lbl">Previsão de saldo no fim do mês</div>
+      <div class="val num ${previsto>=0?"pos":"neg"}" style="font-size:24px">${money(previsto)}</div>
+      <div class="phrase">${phrase}</div>
+    </div>
+  </div>`;
+
   html += `<div class="summary">
     <div class="scard big"><div class="lbl">Saldo do mês</div><div class="val num ${t.bal>=0?"pos":"neg"}">${money(t.bal)}</div></div>
     <div class="scard"><div class="lbl">Entradas</div><div class="val num pos">${money(t.inc)}</div></div>
@@ -327,7 +357,7 @@ function renderInicio(m){
   </div>`;
 
   // Donut despesas por categoria
-  html += `<div class="section"><h2>Despesas por categoria</h2><div class="sub">${periodLabel(period)}</div><div id="donut-slot"></div></div>`;
+  html += `<div class="section"><h2>Despesas por categoria</h2><div class="sub">${periodLabel(period)} · inclui contas a pagar (previsto)</div><div id="donut-slot"></div></div>`;
   // Evolução
   html += `<div class="section"><h2>Últimos 6 meses</h2><div class="sub">Entradas x Saídas</div><div id="evo-slot" class="empty">Carregando…</div></div>`;
 
@@ -345,7 +375,7 @@ function renderInicio(m){
 }
 
 function donutHTML(){
-  const exp = data.transactions.filter(t=>t.type==="expense").map(t=>({category:t.category,amount:Number(t.amount)})).concat(paidBillsForPeriod());
+  const exp = data.transactions.filter(t=>t.type==="expense").map(t=>({category:t.category,amount:Number(t.amount)})).concat(allBillsExpenses());
   if(!exp.length) return `<div class="empty">Sem despesas lançadas neste mês.</div>`;
   const map = {};
   exp.forEach(t=>{ const k=t.category||"Outros"; map[k]=(map[k]||0)+Number(t.amount); });
