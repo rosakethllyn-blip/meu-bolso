@@ -45,6 +45,8 @@ create table if not exists public.bills (
   due_date date not null,
   recurring boolean default false,
   repeat_count int,                    -- nº de meses que repete (null = sempre)
+  is_invoice boolean default false,    -- é fatura de cartão?
+  items jsonb,                         -- itens da fatura: [{desc, amount}]
   created_at timestamptz default now()
 );
 
