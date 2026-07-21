@@ -392,10 +392,15 @@ async function loadEvolution(){
 function billRow(b){
   const st = billStatus(b);
   const pill = st==="paid"?`<span class="pill paid">Paga</span>`: st==="late"?`<span class="pill late">Vencida</span>`: st==="due"?`<span class="pill due">Vence ${fmtDate(b._due)}</span>`:"";
+  let extra="";
+  if(!b.is_invoice && b.recurring){ extra = b.repeat_count ? `parcela ${monthDiff(b.due_date.slice(0,7),period)+1} de ${b.repeat_count}` : "conta fixa"; }
+  const sub = b.is_invoice
+    ? ("fatura · "+((b._items&&b._items.length)||0)+" "+(((b._items&&b._items.length)===1)?"item":"itens"))
+    : (esc(b.category||"—")+(extra?` · <span style="color:var(--accent-ink)">${extra}</span>`:""));
   return `<div class="item ${b._paid?"paid-row":""}" data-bill="${b.id}">
     <button class="chk ${b._paid?"on":""}" data-pay="${b.id}" aria-label="Marcar paga">✓</button>
-    <div class="grow"><div class="t1">${esc(b.name)}${b.recurring?' <span style="color:var(--muted);font-weight:400">· mensal</span>':""}</div>
-      <div class="t2">Vence ${fmtDate(b._due)} · ${b.is_invoice?("fatura · "+((b._items&&b._items.length)||0)+" "+(((b._items&&b._items.length)===1)?"item":"itens")):esc(b.category||"—")}</div></div>
+    <div class="grow"><div class="t1">${esc(b.name)}</div>
+      <div class="t2">Vence ${fmtDate(b._due)} · ${sub}</div></div>
     ${pill}
     <div class="amt num">${money(b._amount)}</div>
     <button class="mini" data-editbill="${b.id}">${ic('edit',15)}</button>
