@@ -226,12 +226,24 @@ const catsByType = (t) => data.categories.filter(c=>c.type===t);
 
 /* Bills helpers */
 function monthDiff(a,b){ const [ay,am]=a.split("-").map(Number), [by,bm]=b.split("-").map(Number); return (by-ay)*12+(bm-am); }
+// Parcelas por item: item aparece nas primeiras N faturas (N = installments, padrão 1)
+function itemActive(it, d){ const n=it.installments?Math.max(1,Number(it.installments)):null; return d>=0 && (n==null || d<n); }
+function billActiveItems(b, p){
+  if(!(b.is_invoice && Array.isArray(b.items))) return null;
+  const d=monthDiff(b.due_date.slice(0,7), p);
+  return b.items.filter(it=>itemActive(it,d));
+}
+function billAmountFor(b,p){ const it=billActiveItems(b,p); return it ? it.reduce((s,x)=>s+(Number(x.amount)||0),0) : (Number(b.amount)||0); }
 function billInPeriod(b,p){
   const bym=b.due_date.slice(0,7);
   if(!b.recurring) return p===bym;
   const d=monthDiff(bym,p);
   if(d<0) return false;
   if(b.repeat_count && d>=Number(b.repeat_count)) return false;
+  // fatura: só aparece enquanto houver algum item (parcela) ativo neste mês
+  if(b.is_invoice && Array.isArray(b.items) && b.items.length){
+    if(!b.items.some(it=>itemActive(it,d))) return false;
+  }
   return true;
 }
 function billDueDate(b,p){
@@ -240,16 +252,20 @@ function billDueDate(b,p){
   const last=new Date(y,m,0).getDate(); return `${p}-${String(Math.min(day,last)).padStart(2,"0")}`;
 }
 function billPaid(b,p){ return data.payments.some(x=>x.bill_id===b.id && x.period===p); }
-function billsForPeriod(){ return data.bills.filter(b=>billInPeriod(b,period)).map(b=>({...b, _due:billDueDate(b,period), _paid:billPaid(b,period)})).sort((a,b)=> (a._paid-b._paid) || a._due.localeCompare(b._due)); }
+function billsForPeriod(){ return data.bills.filter(b=>billInPeriod(b,period)).map(b=>{
+    const _items = billActiveItems(b, period);
+    const _amount = _items ? _items.reduce((s,it)=>s+(Number(it.amount)||0),0) : (Number(b.amount)||0);
+    return {...b, _due:billDueDate(b,period), _paid:billPaid(b,period), _items, _amount};
+  }).sort((a,b)=> (a._paid-b._paid) || a._due.localeCompare(b._due)); }
 function billStatus(b){ if(b._paid) return "paid"; const du=daysUntil(b._due); if(du<0) return "late"; if(du<=5) return "due"; return "next"; }
 // Contas marcadas como pagas contam como despesas do mês.
 function paidBillsForPeriod(){
   const out=[];
   billsForPeriod().filter(b=>b._paid).forEach(b=>{
-    if(b.is_invoice && Array.isArray(b.items) && b.items.length){
-      b.items.forEach(it=> out.push({ category: it.category||b.category||"Outros", amount:Number(it.amount)||0, date:b._due }));
+    if(b._items){
+      b._items.forEach(it=> out.push({ category: it.category||b.category||"Outros", amount:Number(it.amount)||0, date:b._due }));
     } else {
-      out.push({ category:b.category||"Outros", amount:Number(b.amount)||0, date:b._due });
+      out.push({ category:b.category||"Outros", amount:Number(b._amount)||0, date:b._due });
     }
   });
   return out;
@@ -260,8 +276,8 @@ function totals(){
   let inc=0, exp=0;
   data.transactions.forEach(t=> t.type==="income" ? inc+=Number(t.amount) : exp+=Number(t.amount));
   const bills = billsForPeriod();
-  exp += bills.filter(b=>b._paid).reduce((s,b)=>s+Number(b.amount),0);
-  const toPay = bills.filter(b=>!b._paid).reduce((s,b)=>s+Number(b.amount),0);
+  exp += bills.filter(b=>b._paid).reduce((s,b)=>s+Number(b._amount),0);
+  const toPay = bills.filter(b=>!b._paid).reduce((s,b)=>s+Number(b._amount),0);
   return { inc, exp, bal:inc-exp, toPay };
 }
 
@@ -295,7 +311,7 @@ function renderInicio(m){
 
   if(late.length || due.length){
     html += `<div style="margin-bottom:10px">`;
-    if(late.length) html += `<div class="alert-bar late">${ic('alert',16)} ${late.length} conta(s) vencida(s) — ${money(late.reduce((s,b)=>s+ +b.amount,0))}</div>`;
+    if(late.length) html += `<div class="alert-bar late">${ic('alert',16)} ${late.length} conta(s) vencida(s) — ${money(late.reduce((s,b)=>s+ +b._amount,0))}</div>`;
     if(due.length) html += `<div class="alert-bar due">${ic('clock',16)} ${due.length} conta(s) vencendo em breve</div>`;
     html += `</div>`;
   }
@@ -355,7 +371,7 @@ async function loadEvolution(){
   (rows||[]).forEach(r=>{ const k=r.date.slice(0,7); if(agg[k]){ r.type==="income"?agg[k].inc+=+r.amount:agg[k].exp+=+r.amount; } });
   // adiciona contas pagas como saídas em cada mês
   const { data:pays } = await sb.from("bill_payments").select("period,bill_id").gte("period",months[0]).lte("period",period);
-  (pays||[]).forEach(p=>{ const b=data.bills.find(x=>x.id===p.bill_id); if(b && agg[p.period]) agg[p.period].exp += Number(b.amount); });
+  (pays||[]).forEach(p=>{ const b=data.bills.find(x=>x.id===p.bill_id); if(b && agg[p.period]) agg[p.period].exp += billAmountFor(b, p.period); });
   const max = Math.max(1, ...months.flatMap(mm=>[agg[mm].inc,agg[mm].exp]));
   const bars = months.map(mm=>{
     const a=agg[mm]; const hi=(a.inc/max*100), he=(a.exp/max*100);
@@ -379,9 +395,9 @@ function billRow(b){
   return `<div class="item ${b._paid?"paid-row":""}" data-bill="${b.id}">
     <button class="chk ${b._paid?"on":""}" data-pay="${b.id}" aria-label="Marcar paga">✓</button>
     <div class="grow"><div class="t1">${esc(b.name)}${b.recurring?' <span style="color:var(--muted);font-weight:400">· mensal</span>':""}</div>
-      <div class="t2">Vence ${fmtDate(b._due)} · ${b.is_invoice?("fatura · "+((b.items&&b.items.length)||0)+" "+(((b.items&&b.items.length)===1)?"item":"itens")):esc(b.category||"—")}</div></div>
+      <div class="t2">Vence ${fmtDate(b._due)} · ${b.is_invoice?("fatura · "+((b._items&&b._items.length)||0)+" "+(((b._items&&b._items.length)===1)?"item":"itens")):esc(b.category||"—")}</div></div>
     ${pill}
-    <div class="amt num">${money(b.amount)}</div>
+    <div class="amt num">${money(b._amount)}</div>
     <button class="mini" data-editbill="${b.id}">${ic('edit',15)}</button>
   </div>`;
 }
@@ -397,7 +413,7 @@ async function togglePaid(billId){
 }
 function renderContas(m){
   const bills = billsForPeriod();
-  const openSum = bills.filter(b=>!b._paid).reduce((s,b)=>s+ +b.amount,0);
+  const openSum = bills.filter(b=>!b._paid).reduce((s,b)=>s+ +b._amount,0);
   let html = `<div class="row-head"><h1 class="page-title" style="margin:0">Contas a pagar</h1><button class="btn sm" id="add-bill">＋ Nova conta</button></div>`;
   html += `<div class="summary" style="grid-template-columns:1fr 1fr"><div class="scard"><div class="lbl">Em aberto</div><div class="val num warn">${money(openSum)}</div></div><div class="scard"><div class="lbl">Contas no mês</div><div class="val num">${bills.length}</div></div></div>`;
   html += `<div class="section">`;
@@ -566,7 +582,7 @@ function openTxModal(type, existing){
 /* Conta */
 function openBillModal(existing){
   const isEdit=!!existing;
-  let invItems = (existing && Array.isArray(existing.items)) ? existing.items.map(x=>({desc:x.desc, category:x.category||"", amount:x.amount})) : [];
+  let invItems = (existing && Array.isArray(existing.items)) ? existing.items.map(x=>({desc:x.desc, category:x.category||"", amount:x.amount, installments:x.installments||""})) : [];
   const body=`
     <div class="field"><label>Nome da conta</label><input class="input" id="b-name" required placeholder="Ex: Aluguel, Luz, Cartão…" value="${existing?esc(existing.name):""}"></div>
     <div class="grid2">
@@ -576,27 +592,32 @@ function openBillModal(existing){
     <div class="field" id="b-cat-field" style="${existing&&existing.is_invoice?"display:none":""}"><label>Categoria</label><select class="input" id="b-cat">${catOptions("expense", existing?existing.category:"Contas")}</select>${catNewMarkup("b-cat")}</div>
     <label class="check-line"><span class="switch ${existing&&existing.is_invoice?"on":""}" id="b-inv"></span> É fatura de cartão?</label>
     <div id="b-inv-wrap" style="display:${existing&&existing.is_invoice?"block":"none"};margin:6px 0;padding:12px;background:var(--surface-2);border-radius:12px">
-      <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Liste as compras da fatura, cada uma na sua categoria — o total é somado sozinho.</div>
+      <div style="font-size:13px;color:var(--muted);margin-bottom:10px">Liste as compras da fatura, cada uma na sua categoria e nº de parcelas — o total de cada mês é calculado sozinho.</div>
       <div id="b-items"></div>
       <button type="button" class="btn sm ghost" id="b-add-item" style="width:auto">＋ Adicionar item</button>
       <div id="b-inv-total" class="num" style="font-weight:800;margin-top:12px;text-align:right"></div>
     </div>
-    <label class="check-line"><span class="switch ${existing&&existing.recurring?"on":""}" id="b-rec"></span> Repete todo mês</label>
-    <div class="field" id="b-rep-wrap" style="margin-top:8px;${existing&&existing.recurring?"":"display:none"}">
-      <label>Repete por quantas vezes? <span style="color:var(--muted);font-weight:400">(vazio = sempre · parcelado em 10x → 10)</span></label>
-      <input class="input num" id="b-rep" type="number" min="1" step="1" inputmode="numeric" placeholder="sempre" value="${existing&&existing.repeat_count?existing.repeat_count:""}">
+    <div id="b-recur-block" style="${existing&&existing.is_invoice?"display:none":""}">
+      <label class="check-line"><span class="switch ${existing&&existing.recurring?"on":""}" id="b-rec"></span> Repete todo mês</label>
+      <div class="field" id="b-rep-wrap" style="margin-top:8px;${existing&&existing.recurring?"":"display:none"}">
+        <label>Repete por quantas vezes? <span style="color:var(--muted);font-weight:400">(vazio = sempre · parcelado em 10x → 10)</span></label>
+        <input class="input num" id="b-rep" type="number" min="1" step="1" inputmode="numeric" placeholder="sempre" value="${existing&&existing.repeat_count?existing.repeat_count:""}">
+      </div>
     </div>
     <button class="btn" type="submit" style="margin-top:8px">${isEdit?"Salvar":"Adicionar conta"}</button>
     ${isEdit?`<button class="btn danger" type="button" id="b-del" style="margin-top:8px">Excluir conta</button>`:""}`;
   openModal(isEdit?"Editar conta":"Nova conta", body, async(close)=>{
-    const rec=$("#b-rec").classList.contains("on");
-    const rep=rec ? (parseInt($("#b-rep").value,10)||null) : null;
     const inv=$("#b-inv").classList.contains("on");
-    let cat=null;
-    if(!inv){ cat=await maybeCreateCategory($("#b-cat"),"expense"); if(cat===null) return; }
+    let rec, rep, cat=null;
+    if(inv){ rec=true; rep=null; }
+    else {
+      rec=$("#b-rec").classList.contains("on");
+      rep=rec ? (parseInt($("#b-rep").value,10)||null) : null;
+      cat=await maybeCreateCategory($("#b-cat"),"expense"); if(cat===null) return;
+    }
     let amount, items=null;
     if(inv){
-      items=invItems.map(it=>({desc:(it.desc||"").trim(), category:it.category||"Outros", amount:Number(it.amount)||0})).filter(it=>it.desc||it.amount);
+      items=invItems.map(it=>({desc:(it.desc||"").trim(), category:it.category||"Outros", amount:Number(it.amount)||0, installments: it.installments?Math.max(1,parseInt(it.installments,10)||1):null})).filter(it=>it.desc||it.amount);
       if(!items.length){ toast("Adicione ao menos um item na fatura"); return; }
       amount=items.reduce((s,it)=>s+it.amount,0);
     } else { amount=Number($("#b-amount").value); }
@@ -625,13 +646,18 @@ function openBillModal(existing){
           <select class="input" data-i="${i}" data-f="category" style="flex:1;min-width:0">${catOptions("expense", it.category||"Outros", false)}</select>
           <input class="input num" data-i="${i}" data-f="amount" type="number" step="0.01" inputmode="decimal" placeholder="0,00" value="${it.amount??""}" style="width:92px">
         </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:6px;font-size:12px;color:var(--muted)">
+          <span>Aparece em</span>
+          <input class="input num" data-i="${i}" data-f="installments" type="number" min="1" step="1" inputmode="numeric" placeholder="1" value="${it.installments??""}" style="width:52px;padding:6px 8px">
+          <span>fatura(s) — 1 = à vista · 4 = 4x · vazio = todo mês</span>
+        </div>
       </div>`).join("");
       box.querySelectorAll("input,select").forEach(inp=>{ const ev = inp.tagName==="SELECT"?"onchange":"oninput"; inp[ev]=()=>{ invItems[+inp.dataset.i][inp.dataset.f]=inp.value; updateInvTotal(); }; });
       box.querySelectorAll("[data-del]").forEach(b=>{ b.onclick=()=>{ invItems.splice(+b.dataset.del,1); renderItems(); }; });
       updateInvTotal();
     };
-    $("#b-inv").onclick=()=>{ const sw=$("#b-inv"); sw.classList.toggle("on"); const on=sw.classList.contains("on"); $("#b-inv-wrap").style.display=on?"block":"none"; $("#b-cat-field").style.display=on?"none":"block"; $("#b-amount").readOnly=on; $("#b-amount").required=!on; if(on){ if(!invItems.length) invItems.push({desc:"",category:"Outros",amount:""}); renderItems(); $("#b-rec").classList.add("on"); $("#b-rep-wrap").style.display=""; } };
-    $("#b-add-item").onclick=()=>{ invItems.push({desc:"",category:"Outros",amount:""}); renderItems(); };
+    $("#b-inv").onclick=()=>{ const sw=$("#b-inv"); sw.classList.toggle("on"); const on=sw.classList.contains("on"); $("#b-inv-wrap").style.display=on?"block":"none"; $("#b-cat-field").style.display=on?"none":"block"; $("#b-recur-block").style.display=on?"none":"block"; $("#b-amount").readOnly=on; $("#b-amount").required=!on; if(on){ if(!invItems.length) invItems.push({desc:"",category:"Outros",amount:"",installments:1}); renderItems(); $("#b-rec").classList.add("on"); } };
+    $("#b-add-item").onclick=()=>{ invItems.push({desc:"",category:"Outros",amount:"",installments:1}); renderItems(); };
     if(existing && existing.is_invoice){ $("#b-amount").readOnly=true; $("#b-amount").required=false; renderItems(); }
     $("#b-rec").onclick=()=>{ $("#b-rec").classList.toggle("on"); $("#b-rep-wrap").style.display=$("#b-rec").classList.contains("on")?"":"none"; };
     $("#b-del") && ($("#b-del").onclick=async()=>{ if(confirm("Excluir esta conta? (some de todos os meses)")){ await sb.from("bills").delete().eq("id",existing.id); close(); toast("Conta excluída"); await refresh(); } });
