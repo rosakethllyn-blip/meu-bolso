@@ -414,7 +414,7 @@ function renderContas(m){
 function renderLancar(m){
   const txs = data.transactions;
   let html = `<div class="row-head"><h1 class="page-title" style="margin:0">Lançamentos</h1>
-    <div style="display:flex;gap:8px"><button class="btn sm ghost" id="add-inc">＋ Receita</button><button class="btn sm" id="add-exp">＋ Despesa</button></div></div>`;
+    <button class="btn sm" id="add-inc">＋ Receita</button></div>`;
   html += `<div class="section">`;
   if(!txs.length) html += `<div class="empty"><div>Nenhum lançamento em ${periodLabel(period)}.</div><div style="margin-top:6px;font-size:13px">Registre suas receitas e despesas para acompanhar o saldo.</div></div>`;
   else html += txs.map(t=>{
@@ -430,7 +430,6 @@ function renderLancar(m){
   html += `</div>`;
   m.innerHTML = html;
   $("#add-inc").onclick = () => openTxModal("income");
-  $("#add-exp").onclick = () => openTxModal("expense");
   $$("[data-edittx]",m).forEach(el=> el.onclick = () => openTxModal(null, data.transactions.find(x=>x.id===el.dataset.edittx)));
 }
 
@@ -540,7 +539,7 @@ async function maybeCreateCategory(selectEl, type){
 function openTxModal(type, existing){
   const isEdit=!!existing; if(existing) type=existing.type;
   const body = `
-    <div class="seg type-seg"><button type="button" id="t-exp" class="${type!=="income"?"active":""}">Despesa</button><button type="button" id="t-inc" class="${type==="income"?"active":""}">Receita</button></div>
+    ${isEdit?`<div class="seg type-seg"><button type="button" id="t-exp" class="${type!=="income"?"active":""}">Despesa</button><button type="button" id="t-inc" class="${type==="income"?"active":""}">Receita</button></div>`:""}
     <div class="field"><label>Valor (R$)</label><input class="input num" id="t-amount" type="number" step="0.01" inputmode="decimal" required placeholder="0,00" value="${existing?existing.amount:""}"></div>
     <div class="field"><label>Categoria</label><select class="input" id="t-cat"></select>${catNewMarkup("t-cat")}</div>
     <div class="field"><label>Descrição (opcional)</label><input class="input" id="t-desc" placeholder="Ex: mercado, salário…" value="${existing?esc(existing.description||""):""}"></div>
@@ -548,7 +547,7 @@ function openTxModal(type, existing){
     <button class="btn" type="submit">${isEdit?"Salvar":"Adicionar"}</button>
     ${isEdit?`<button class="btn danger" type="button" id="t-del" style="margin-top:8px">Excluir lançamento</button>`:""}`;
   let curType=type;
-  const close = openModal(isEdit?"Editar lançamento":"Novo lançamento", body, async (close)=>{
+  const close = openModal(isEdit?"Editar lançamento":"Nova receita", body, async (close)=>{
     const cat = await maybeCreateCategory($("#t-cat"),curType); if(cat===null){ return; }
     const row = { user_id:state.user.id, type:curType, amount:Number($("#t-amount").value), category:cat, description:$("#t-desc").value.trim()||null, date:$("#t-date").value };
     if(isEdit) await sb.from("transactions").update(row).eq("id",existing.id);
@@ -558,8 +557,8 @@ function openTxModal(type, existing){
     const fill=()=>{ $("#t-cat").innerHTML=catOptions(curType, existing?existing.category:""); const w=$("#t-cat-new"); if(w) w.style.display="none"; };
     fill();
     wireCatSelect("t-cat", ()=>curType);
-    $("#t-exp").onclick=()=>{ curType="expense"; $("#t-exp").classList.add("active"); $("#t-inc").classList.remove("active"); fill(); };
-    $("#t-inc").onclick=()=>{ curType="income"; $("#t-inc").classList.add("active"); $("#t-exp").classList.remove("active"); fill(); };
+    $("#t-exp") && ($("#t-exp").onclick=()=>{ curType="expense"; $("#t-exp").classList.add("active"); $("#t-inc").classList.remove("active"); fill(); });
+    $("#t-inc") && ($("#t-inc").onclick=()=>{ curType="income"; $("#t-inc").classList.add("active"); $("#t-exp").classList.remove("active"); fill(); });
     $("#t-del") && ($("#t-del").onclick=async()=>{ if(confirm("Excluir este lançamento?")){ await sb.from("transactions").delete().eq("id",existing.id); close(); toast("Lançamento excluído"); await refresh(); } });
   });
 }
