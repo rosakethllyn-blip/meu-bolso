@@ -4,6 +4,8 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#10b981" />
+<link rel="preconnect" href="https://zucmibwmesgcjeclditr.supabase.co" crossorigin />
+<link rel="preload" href="vendor/supabase.min.js" as="script" />
 <link rel="icon" type="image/svg+xml" href="favicon.svg" />
 <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png?v=3" />
 <link rel="apple-touch-icon" sizes="180x180" href="icons/icon-180.png?v=3" />
@@ -347,8 +349,8 @@
 
 <script src="vendor/supabase.min.js"></script>
 <script type="module">
-  // Carrega sempre a versão mais recente (evita cache antigo do navegador)
-  import(`./app.js?v=${Date.now()}`).catch(err=>{
+  // app.js é cacheado pelo navegador; o GitHub Pages atualiza sozinho (ETag) quando muda.
+  import("./app.js").catch(err=>{
     document.getElementById("screen-loading").innerHTML =
       '<div style="text-align:center;padding:24px;color:var(--muted)">Não foi possível carregar o app. Verifique sua conexão e recarregue a página.<br><small>'+ (err && err.message || "") +'</small></div>';
   });
