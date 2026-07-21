@@ -402,7 +402,7 @@ function billRow(b){
     : (esc(b.category||"—")+(extra?` · <span style="color:var(--accent-ink)">${extra}</span>`:""));
   return `<div class="item ${b._paid?"paid-row":""}" data-bill="${b.id}">
     <button class="chk ${b._paid?"on":""}" data-pay="${b.id}" aria-label="Marcar paga">✓</button>
-    <div class="grow"><div class="t1">${esc(b.name)}</div>
+    <div class="grow"><div class="t1">${b.is_invoice?`<button type="button" class="linkname" data-invdetail="${b.id}">${esc(b.name)} <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>`:esc(b.name)}</div>
       <div class="t2">Vence ${fmtDate(b._due)} · ${sub}</div></div>
     ${pill}
     <div class="amt num">${money(b._amount)}</div>
@@ -412,6 +412,27 @@ function billRow(b){
 function bindBillRows(root){
   $$("[data-pay]",root).forEach(el=> el.onclick = () => togglePaid(el.dataset.pay));
   $$("[data-editbill]",root).forEach(el=> el.onclick = () => { const b=data.bills.find(x=>x.id===el.dataset.editbill); openBillModal(b); });
+  $$("[data-invdetail]",root).forEach(el=> el.onclick = () => openInvoiceDetails(el.dataset.invdetail));
+}
+function openInvoiceDetails(billId){
+  const b = data.bills.find(x=>x.id===billId); if(!b) return;
+  const d = monthDiff(b.due_date.slice(0,7), period);
+  const items = billActiveItems(b, period) || [];
+  const total = items.reduce((s,it)=>s+(Number(it.amount)||0),0);
+  const rows = items.map(it=>{
+    const parc = it.installments ? `parcela ${d+1} de ${it.installments}` : "todo mês";
+    const color = (data.categories.find(c=>c.name===it.category&&c.type==="expense")||{}).color||"#94a3b8";
+    return `<div class="item">
+      <span class="dot" style="background:${color}"></span>
+      <div class="grow"><div class="t1">${esc(it.desc||"—")}</div>
+        <div class="t2">${esc(it.category||"—")} · <span style="color:var(--accent-ink)">${parc}</span></div></div>
+      <div class="amt num">${money(it.amount)}</div>
+    </div>`;
+  }).join("") || `<div class="empty">Sem itens neste mês.</div>`;
+  const body = `<div class="sub" style="margin:-6px 0 8px;text-transform:capitalize">${periodLabel(period)}</div>${rows}
+    <div style="display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-weight:800"><span>Total da fatura</span><span class="num">${money(total)}</span></div>
+    <button class="btn ghost" type="button" id="inv-close" style="margin-top:14px">Fechar</button>`;
+  openModal(b.name, body, async()=>{}, ()=>{ $("#inv-close").onclick=()=>{ $("#modal-root").innerHTML=""; }; });
 }
 async function togglePaid(billId){
   const paid = billPaid({id:billId}, period);
