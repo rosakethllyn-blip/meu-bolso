@@ -212,7 +212,15 @@ async function refresh(){ await loadData(); renderTab(currentTab); updateBell();
 const catsByType = (t) => data.categories.filter(c=>c.type===t);
 
 /* Bills helpers */
-function billInPeriod(b,p){ const bym=b.due_date.slice(0,7); return b.recurring ? p>=bym : p===bym; }
+function monthDiff(a,b){ const [ay,am]=a.split("-").map(Number), [by,bm]=b.split("-").map(Number); return (by-ay)*12+(bm-am); }
+function billInPeriod(b,p){
+  const bym=b.due_date.slice(0,7);
+  if(!b.recurring) return p===bym;
+  const d=monthDiff(bym,p);
+  if(d<0) return false;
+  if(b.repeat_count && d>=Number(b.repeat_count)) return false;
+  return true;
+}
 function billDueDate(b,p){
   if(!b.recurring) return b.due_date;
   const day=Number(b.due_date.slice(8,10)); const [y,m]=p.split("-").map(Number);
@@ -520,17 +528,23 @@ function openBillModal(existing){
     </div>
     <div class="field"><label>Categoria</label><select class="input" id="b-cat">${catOptions("expense", existing?existing.category:"Contas")}</select></div>
     <label class="check-line"><span class="switch ${existing&&existing.recurring?"on":""}" id="b-rec"></span> Repete todo mês</label>
+    <div class="field" id="b-rep-wrap" style="margin-top:8px;${existing&&existing.recurring?"":"display:none"}">
+      <label>Repete por quantas vezes? <span style="color:var(--muted);font-weight:400">(vazio = sempre)</span></label>
+      <input class="input num" id="b-rep" type="number" min="1" step="1" inputmode="numeric" placeholder="sempre" value="${existing&&existing.repeat_count?existing.repeat_count:""}">
+    </div>
     <button class="btn" type="submit" style="margin-top:8px">${isEdit?"Salvar":"Adicionar conta"}</button>
     ${isEdit?`<button class="btn danger" type="button" id="b-del" style="margin-top:8px">Excluir conta</button>`:""}`;
   openModal(isEdit?"Editar conta":"Nova conta", body, async(close)=>{
     const cat=await maybeCreateCategory($("#b-cat"),"expense"); if(cat===null) return;
     const rec=$("#b-rec").classList.contains("on");
-    const row={ user_id:state.user.id, name:$("#b-name").value.trim(), amount:Number($("#b-amount").value), due_date:$("#b-date").value, category:cat, recurring:rec };
-    if(isEdit) await sb.from("bills").update(row).eq("id",existing.id);
-    else await sb.from("bills").insert(row);
+    const rep=rec ? (parseInt($("#b-rep").value,10)||null) : null;
+    const row={ user_id:state.user.id, name:$("#b-name").value.trim(), amount:Number($("#b-amount").value), due_date:$("#b-date").value, category:cat, recurring:rec, repeat_count:rep };
+    let res = isEdit ? await sb.from("bills").update(row).eq("id",existing.id) : await sb.from("bills").insert(row);
+    if(res.error && /repeat_count/i.test(res.error.message||"")){ delete row.repeat_count; res = isEdit ? await sb.from("bills").update(row).eq("id",existing.id) : await sb.from("bills").insert(row); }
+    if(res.error) throw res.error;
     close(); toast(isEdit?"Conta atualizada":"Conta adicionada"); await refresh();
   }, ()=>{
-    $("#b-rec").onclick=()=>$("#b-rec").classList.toggle("on");
+    $("#b-rec").onclick=()=>{ $("#b-rec").classList.toggle("on"); $("#b-rep-wrap").style.display=$("#b-rec").classList.contains("on")?"":"none"; };
     $("#b-del") && ($("#b-del").onclick=async()=>{ if(confirm("Excluir esta conta? (some de todos os meses)")){ await sb.from("bills").delete().eq("id",existing.id); close(); toast("Conta excluída"); await refresh(); } });
   });
 }

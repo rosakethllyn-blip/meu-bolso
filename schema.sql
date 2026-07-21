@@ -44,6 +44,7 @@ create table if not exists public.bills (
   category text,
   due_date date not null,
   recurring boolean default false,
+  repeat_count int,                    -- nº de meses que repete (null = sempre)
   created_at timestamptz default now()
 );
 
