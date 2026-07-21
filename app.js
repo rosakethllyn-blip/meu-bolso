@@ -233,7 +233,7 @@ function billActiveItems(b, p){
   const d=monthDiff(b.due_date.slice(0,7), p);
   return b.items.filter(it=>itemActive(it,d));
 }
-function billAmountFor(b,p){ const it=billActiveItems(b,p); return it ? it.reduce((s,x)=>s+(Number(x.amount)||0),0) : (Number(b.amount)||0); }
+function billAmountFor(b,p){ const it=billActiveItems(b,p); if(it) return it.reduce((s,x)=>s+(Number(x.amount)||0),0); if(b.variable) return (b.amounts && b.amounts[p]!=null) ? Number(b.amounts[p]) : (Number(b.amount)||0); return Number(b.amount)||0; }
 function billInPeriod(b,p){
   const bym=b.due_date.slice(0,7);
   if(!b.recurring) return p===bym;
@@ -254,8 +254,11 @@ function billDueDate(b,p){
 function billPaid(b,p){ return data.payments.some(x=>x.bill_id===b.id && x.period===p); }
 function billsForPeriod(){ return data.bills.filter(b=>billInPeriod(b,period)).map(b=>{
     const _items = billActiveItems(b, period);
-    const _amount = _items ? _items.reduce((s,it)=>s+(Number(it.amount)||0),0) : (Number(b.amount)||0);
-    return {...b, _due:billDueDate(b,period), _paid:billPaid(b,period), _items, _amount};
+    let _amount, _amountSet=true;
+    if(_items) _amount = _items.reduce((s,it)=>s+(Number(it.amount)||0),0);
+    else if(b.variable){ _amountSet = !!(b.amounts && b.amounts[period]!=null); _amount = _amountSet ? Number(b.amounts[period]) : (Number(b.amount)||0); }
+    else _amount = Number(b.amount)||0;
+    return {...b, _due:billDueDate(b,period), _paid:billPaid(b,period), _items, _amount, _amountSet};
   }).sort((a,b)=> (a._paid-b._paid) || a._due.localeCompare(b._due)); }
 function billStatus(b){ if(b._paid) return "paid"; const du=daysUntil(b._due); if(du<0) return "late"; if(du<=5) return "due"; return "next"; }
 // Contas marcadas como pagas contam como despesas do mês.
@@ -393,7 +396,7 @@ function billRow(b){
   const st = billStatus(b);
   const pill = st==="paid"?`<span class="pill paid">Paga</span>`: st==="late"?`<span class="pill late">Vencida</span>`: st==="due"?`<span class="pill due">Vence ${fmtDate(b._due)}</span>`:"";
   let extra="";
-  if(!b.is_invoice && b.recurring){ extra = b.repeat_count ? `parcela ${monthDiff(b.due_date.slice(0,7),period)+1} de ${b.repeat_count}` : "conta fixa"; }
+  if(!b.is_invoice && b.recurring){ extra = b.variable ? "valor variável" : (b.repeat_count ? `parcela ${monthDiff(b.due_date.slice(0,7),period)+1} de ${b.repeat_count}` : "conta fixa"); }
   const sub = b.is_invoice
     ? ("fatura · "+((b._items&&b._items.length)||0)+" "+(((b._items&&b._items.length)===1)?"item":"itens"))
     : (esc(b.category||"—")+(extra?` · <span style="color:var(--accent-ink)">${extra}</span>`:""));
@@ -591,7 +594,7 @@ function openBillModal(existing){
   const body=`
     <div class="field"><label>Nome da conta</label><input class="input" id="b-name" required placeholder="Ex: Aluguel, Luz, Cartão…" value="${existing?esc(existing.name):""}"></div>
     <div class="grid2">
-      <div class="field"><label>Valor (R$)</label><input class="input num" id="b-amount" type="number" step="0.01" inputmode="decimal" required placeholder="0,00" value="${existing?existing.amount:""}"></div>
+      <div class="field"><label id="b-amount-label">Valor (R$)</label><input class="input num" id="b-amount" type="number" step="0.01" inputmode="decimal" required placeholder="0,00" value="${existing? (existing.variable && existing.amounts && existing.amounts[period]!=null ? existing.amounts[period] : existing.amount) : ""}"></div>
       <div class="field"><label>Vencimento</label><input class="input" id="b-date" type="date" required value="${existing?existing.due_date:periodBounds(period).start}"></div>
     </div>
     <div class="field" id="b-cat-field" style="${existing&&existing.is_invoice?"display:none":""}"><label>Categoria</label><select class="input" id="b-cat">${catOptions("expense", existing?existing.category:"Contas")}</select>${catNewMarkup("b-cat")}</div>
@@ -612,6 +615,7 @@ function openBillModal(existing){
         </div>
       </div>
     </div>
+    <label class="check-line" id="b-var-line" style="${existing&&existing.is_invoice?"display:none":""}"><span class="switch ${existing&&existing.variable?"on":""}" id="b-var"></span> Valor muda a cada mês (luz, água…)</label>
     <button class="btn" type="submit" style="margin-top:8px">${isEdit?"Salvar":"Adicionar conta"}</button>
     ${isEdit?`<button class="btn danger" type="button" id="b-del" style="margin-top:8px">Excluir conta</button>`:""}`;
   openModal(isEdit?"Editar conta":"Nova conta", body, async(close)=>{
@@ -629,12 +633,16 @@ function openBillModal(existing){
       if(!items.length){ toast("Adicione ao menos um item na fatura"); return; }
       amount=items.reduce((s,it)=>s+it.amount,0);
     } else { amount=Number($("#b-amount").value); }
-    const row={ user_id:state.user.id, name:$("#b-name").value.trim(), amount, due_date:$("#b-date").value, category:cat, recurring:rec, repeat_count:rep, is_invoice:inv, items:inv?items:null };
+    const variable = !inv && $("#b-var").classList.contains("on");
+    if(variable) rec = true;  // valor variável é sempre recorrente
+    let amounts = (existing && existing.amounts) ? {...existing.amounts} : {};
+    if(variable) amounts[period] = amount;  // grava o valor do mês que está sendo visto
+    const row={ user_id:state.user.id, name:$("#b-name").value.trim(), amount, due_date:$("#b-date").value, category:cat, recurring:rec, repeat_count:rep, is_invoice:inv, items:inv?items:null, variable, amounts: variable?amounts:null };
     let res, guard=0;
     while(true){
       res = isEdit ? await sb.from("bills").update(row).eq("id",existing.id) : await sb.from("bills").insert(row);
       if(!res.error) break;
-      const col=["repeat_count","is_invoice","items"].find(c=> (res.error.message||"").includes(c));
+      const col=["repeat_count","is_invoice","items","variable","amounts"].find(c=> (res.error.message||"").includes(c));
       if(col && (col in row) && guard++<5){ delete row[col]; continue; }
       throw res.error;
     }
@@ -664,11 +672,14 @@ function openBillModal(existing){
       box.querySelectorAll("[data-del]").forEach(b=>{ b.onclick=()=>{ invItems.splice(+b.dataset.del,1); renderItems(); }; });
       updateInvTotal();
     };
-    $("#b-inv").onclick=()=>{ const sw=$("#b-inv"); sw.classList.toggle("on"); const on=sw.classList.contains("on"); $("#b-inv-wrap").style.display=on?"block":"none"; $("#b-cat-field").style.display=on?"none":"block"; $("#b-recur-block").style.display=on?"none":"block"; $("#b-amount").readOnly=on; $("#b-amount").required=!on; if(on){ if(!invItems.length) invItems.push({desc:"",category:"Outros",amount:"",installments:1}); renderItems(); $("#b-rec").classList.add("on"); } else { $("#b-limit-wrap").style.display=$("#b-rec").classList.contains("on")?"":"none"; } };
+    $("#b-inv").onclick=()=>{ const sw=$("#b-inv"); sw.classList.toggle("on"); const on=sw.classList.contains("on"); $("#b-inv-wrap").style.display=on?"block":"none"; $("#b-cat-field").style.display=on?"none":"block"; $("#b-recur-block").style.display=on?"none":"block"; $("#b-var-line").style.display=on?"none":"block"; $("#b-amount").readOnly=on; $("#b-amount").required=!on; if(on){ if(!invItems.length) invItems.push({desc:"",category:"Outros",amount:"",installments:1}); renderItems(); $("#b-rec").classList.add("on"); } else { $("#b-limit-wrap").style.display=$("#b-rec").classList.contains("on")?"":"none"; } };
     $("#b-add-item").onclick=()=>{ invItems.push({desc:"",category:"Outros",amount:"",installments:1}); renderItems(); };
     if(existing && existing.is_invoice){ $("#b-amount").readOnly=true; $("#b-amount").required=false; renderItems(); }
     $("#b-rec").onclick=()=>{ $("#b-rec").classList.toggle("on"); const on=$("#b-rec").classList.contains("on"); $("#b-limit-wrap").style.display=on?"":"none"; if(!on){ $("#b-lim").classList.remove("on"); $("#b-rep-wrap").style.display="none"; } };
     $("#b-lim").onclick=()=>{ $("#b-lim").classList.toggle("on"); $("#b-rep-wrap").style.display=$("#b-lim").classList.contains("on")?"":"none"; };
+    const setAmountLabel=()=>{ const l=$("#b-amount-label"); if(l) l.textContent = ($("#b-var")&&$("#b-var").classList.contains("on")) ? "Valor deste mês (R$)" : "Valor (R$)"; };
+    $("#b-var").onclick=()=>{ $("#b-var").classList.toggle("on"); if($("#b-var").classList.contains("on")){ $("#b-rec").classList.add("on"); $("#b-limit-wrap").style.display=""; } setAmountLabel(); };
+    setAmountLabel();
     $("#b-del") && ($("#b-del").onclick=async()=>{ if(confirm("Excluir esta conta? (some de todos os meses)")){ await sb.from("bills").delete().eq("id",existing.id); close(); toast("Conta excluída"); await refresh(); } });
   });
 }
