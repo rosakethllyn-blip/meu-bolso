@@ -1,5 +1,5 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from "./config.js";
+const { createClient } = window.supabase || {};
 
 /* ---------------- Setup ---------------- */
 const $ = (s, r = document) => r.querySelector(s);
@@ -12,6 +12,11 @@ if (String(SUPABASE_URL).includes("COLE_") || String(SUPABASE_ANON_KEY).includes
     '<h2 style="margin-bottom:10px">Falta configurar o Supabase</h2>' +
     '<p style="color:var(--muted)">Abra o arquivo <b>config.js</b> e cole a sua <b>Project URL</b> e a <b>anon key</b> do Supabase. Depois recarregue esta página.</p></div>';
   throw new Error("Configure config.js");
+}
+
+if(!createClient){
+  document.getElementById("screen-loading").innerHTML = '<div style="text-align:center;padding:24px;color:var(--muted)">Não foi possível carregar a biblioteca do app. Verifique sua conexão e recarregue a página.</div>';
+  throw new Error("Supabase library not loaded");
 }
 
 const sb = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
@@ -190,24 +195,32 @@ function renderOnboarding(){
 }
 
 /* ================= DATA ================= */
-async function loadData(){
-  const { start, end } = periodBounds(period);
-  const [cats, bills, pays, txs, buds, goals] = await Promise.all([
+// Dados que não mudam com o mês — carregados uma vez (e após alterações)
+async function loadStatic(){
+  const [cats, bills, buds, goals] = await Promise.all([
     sb.from("categories").select("*").order("type").order("name"),
     sb.from("bills").select("*"),
-    sb.from("bill_payments").select("*").eq("period", period),
-    sb.from("transactions").select("*").gte("date", start).lte("date", end).order("date", { ascending:false }),
     sb.from("budgets").select("*"),
     sb.from("goals").select("*").order("created_at"),
   ]);
   data.categories = cats.data || [];
   data.bills = bills.data || [];
-  data.payments = pays.data || [];
-  data.transactions = txs.data || [];
   data.budgets = buds.data || [];
   data.goals = goals.data || [];
 }
+// Dados específicos do mês — recarregados ao trocar de mês (rápido, 2 consultas)
+async function loadPeriodData(){
+  const { start, end } = periodBounds(period);
+  const [pays, txs] = await Promise.all([
+    sb.from("bill_payments").select("*").eq("period", period),
+    sb.from("transactions").select("*").gte("date", start).lte("date", end).order("date", { ascending:false }),
+  ]);
+  data.payments = pays.data || [];
+  data.transactions = txs.data || [];
+}
+async function loadData(){ await Promise.all([loadStatic(), loadPeriodData()]); }
 async function refresh(){ await loadData(); renderTab(currentTab); updateBell(); }
+async function changeMonth(delta){ period=shiftPeriod(period,delta); updateMonthLabel(); await loadPeriodData(); renderTab(currentTab); updateBell(); }
 
 const catsByType = (t) => data.categories.filter(c=>c.type===t);
 
@@ -246,8 +259,8 @@ function totals(){
 $$("#tabbar a").forEach(a=>{
   a.onclick = () => { currentTab = a.dataset.tab; $$("#tabbar a").forEach(x=>x.classList.toggle("active",x===a)); renderTab(currentTab); window.scrollTo(0,0); };
 });
-$("#month-prev").onclick = async () => { period=shiftPeriod(period,-1); updateMonthLabel(); await refresh(); };
-$("#month-next").onclick = async () => { period=shiftPeriod(period,1); updateMonthLabel(); await refresh(); };
+$("#month-prev").onclick = () => changeMonth(-1);
+$("#month-next").onclick = () => changeMonth(1);
 function updateMonthLabel(){ $("#month-label").textContent = periodLabel(period); }
 
 function renderTab(tab){
