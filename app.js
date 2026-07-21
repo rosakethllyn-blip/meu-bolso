@@ -321,11 +321,14 @@ function renderInicio(m){
 
   // Previsão de saldo no fim do mês = saldo atual − o que ainda falta pagar
   const previsto = t.bal - t.toPay;
+  const r = previsto / Math.max(t.inc, 1);
   let mood, phrase;
-  if(previsto < 0){ mood="alerta"; phrase="Atenção: a previsão é fechar no vermelho. Segure os gastos este mês."; }
-  else if(t.inc>0 && previsto < t.inc*0.1){ mood="atencao"; phrase="Vai fechar no positivo, mas com pouca folga. Fique de olho."; }
-  else { mood="feliz"; phrase="Tudo sob controle — a previsão é sobrar dinheiro este mês!"; }
-  const moodEmoji = { feliz:"😄", atencao:"😟", alerta:"😰" }[mood];
+  if(r >= 0.25){ mood="festa"; phrase="Uhul! A previsão é sobrar bastante este mês."; }
+  else if(r >= 0.05){ mood="feliz"; phrase="Tudo sob controle — a previsão é sobrar dinheiro!"; }
+  else if(previsto >= 0){ mood="atencao"; phrase="Vai fechar no positivo, mas bem apertado. Fique de olho."; }
+  else if(r > -0.25){ mood="preocupado"; phrase="Cuidado: a previsão é fechar no vermelho. Segure alguns gastos."; }
+  else { mood="alerta"; phrase="Alerta! A previsão está bem negativa. Hora de cortar gastos."; }
+  const moodEmoji = { festa:"🥳", feliz:"😄", atencao:"🤔", preocupado:"😥", alerta:"😱" }[mood];
 
   let html = `<h1 class="page-title">Olá${state.profile.name?`, ${esc(state.profile.name.split(" ")[0])}`:""}</h1>`;
 
