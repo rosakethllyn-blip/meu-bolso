@@ -627,13 +627,11 @@ function openBillModal(existing){
       <div id="b-inv-total" class="num" style="font-weight:800;margin-top:12px;text-align:right"></div>
     </div>
     <div id="b-recur-block" style="${existing&&existing.is_invoice?"display:none":""}">
-      <label class="check-line"><span class="switch ${existing&&existing.recurring?"on":""}" id="b-rec"></span> Repete todo mês (sempre)</label>
-      <div id="b-limit-wrap" style="margin-top:6px;${existing&&existing.recurring?"":"display:none"}">
-        <label class="check-line"><span class="switch ${existing&&existing.repeat_count?"on":""}" id="b-lim"></span> Repetir só um número de meses</label>
-        <div class="field" id="b-rep-wrap" style="margin-top:8px;${existing&&existing.repeat_count?"":"display:none"}">
-          <label>Quantas vezes? <span style="color:var(--muted);font-weight:400">(nº de meses — ex: parcelado 10x → 10)</span></label>
-          <input class="input num" id="b-rep" type="number" min="1" step="1" inputmode="numeric" placeholder="Ex: 10" value="${existing&&existing.repeat_count?existing.repeat_count:""}">
-        </div>
+      <label class="check-line"><span class="switch ${existing&&existing.recurring&&!(existing&&existing.repeat_count)?"on":""}" id="b-rec"></span> Repete todo mês (sempre)</label>
+      <label class="check-line" style="margin-top:6px"><span class="switch ${existing&&existing.repeat_count?"on":""}" id="b-lim"></span> Repetir só um número de meses</label>
+      <div class="field" id="b-rep-wrap" style="margin-top:8px;${existing&&existing.repeat_count?"":"display:none"}">
+        <label>Quantas vezes? <span style="color:var(--muted);font-weight:400">(nº de meses — ex: parcelado 10x → 10)</span></label>
+        <input class="input num" id="b-rep" type="number" min="1" step="1" inputmode="numeric" placeholder="Ex: 10" value="${existing&&existing.repeat_count?existing.repeat_count:""}">
       </div>
     </div>
     <label class="check-line" id="b-var-line" style="${existing&&existing.is_invoice?"display:none":""}"><span class="switch ${existing&&existing.variable?"on":""}" id="b-var"></span> Valor muda a cada mês (luz, água…)</label>
@@ -644,8 +642,9 @@ function openBillModal(existing){
     let rec, rep, cat=null;
     if(inv){ rec=true; rep=null; }
     else {
-      rec=$("#b-rec").classList.contains("on");
-      rep = (rec && $("#b-lim").classList.contains("on")) ? (parseInt($("#b-rep").value,10)||null) : null;
+      const recOn=$("#b-rec").classList.contains("on"), limOn=$("#b-lim").classList.contains("on");
+      rec = recOn || limOn;
+      rep = limOn ? (parseInt($("#b-rep").value,10)||null) : null;
       cat=await maybeCreateCategory($("#b-cat"),"expense"); if(cat===null) return;
     }
     let amount, items=null;
@@ -693,13 +692,13 @@ function openBillModal(existing){
       box.querySelectorAll("[data-del]").forEach(b=>{ b.onclick=()=>{ invItems.splice(+b.dataset.del,1); renderItems(); }; });
       updateInvTotal();
     };
-    $("#b-inv").onclick=()=>{ const sw=$("#b-inv"); sw.classList.toggle("on"); const on=sw.classList.contains("on"); $("#b-inv-wrap").style.display=on?"block":"none"; $("#b-cat-field").style.display=on?"none":"block"; $("#b-recur-block").style.display=on?"none":"block"; $("#b-var-line").style.display=on?"none":"block"; $("#b-amount").readOnly=on; $("#b-amount").required=!on; if(on){ if(!invItems.length) invItems.push({desc:"",category:"Outros",amount:"",installments:1}); renderItems(); $("#b-rec").classList.add("on"); } else { $("#b-limit-wrap").style.display=$("#b-rec").classList.contains("on")?"":"none"; } };
+    $("#b-inv").onclick=()=>{ const sw=$("#b-inv"); sw.classList.toggle("on"); const on=sw.classList.contains("on"); $("#b-inv-wrap").style.display=on?"block":"none"; $("#b-cat-field").style.display=on?"none":"block"; $("#b-recur-block").style.display=on?"none":"block"; $("#b-var-line").style.display=on?"none":"block"; $("#b-amount").readOnly=on; $("#b-amount").required=!on; if(on){ if(!invItems.length) invItems.push({desc:"",category:"Outros",amount:"",installments:1}); renderItems(); $("#b-rec").classList.add("on"); } };
     $("#b-add-item").onclick=()=>{ invItems.push({desc:"",category:"Outros",amount:"",installments:1}); renderItems(); };
     if(existing && existing.is_invoice){ $("#b-amount").readOnly=true; $("#b-amount").required=false; renderItems(); }
-    $("#b-rec").onclick=()=>{ $("#b-rec").classList.toggle("on"); const on=$("#b-rec").classList.contains("on"); $("#b-limit-wrap").style.display=on?"":"none"; if(!on){ $("#b-lim").classList.remove("on"); $("#b-rep-wrap").style.display="none"; } };
-    $("#b-lim").onclick=()=>{ $("#b-lim").classList.toggle("on"); $("#b-rep-wrap").style.display=$("#b-lim").classList.contains("on")?"":"none"; };
+    $("#b-rec").onclick=()=>{ $("#b-rec").classList.toggle("on"); if($("#b-rec").classList.contains("on")){ $("#b-lim").classList.remove("on"); $("#b-rep-wrap").style.display="none"; } };
+    $("#b-lim").onclick=()=>{ $("#b-lim").classList.toggle("on"); const on=$("#b-lim").classList.contains("on"); if(on) $("#b-rec").classList.remove("on"); $("#b-rep-wrap").style.display=on?"":"none"; };
     const setAmountLabel=()=>{ const l=$("#b-amount-label"); if(l) l.textContent = ($("#b-var")&&$("#b-var").classList.contains("on")) ? "Valor deste mês (R$)" : "Valor (R$)"; };
-    $("#b-var").onclick=()=>{ $("#b-var").classList.toggle("on"); if($("#b-var").classList.contains("on")){ $("#b-rec").classList.add("on"); $("#b-limit-wrap").style.display=""; } setAmountLabel(); };
+    $("#b-var").onclick=()=>{ $("#b-var").classList.toggle("on"); if($("#b-var").classList.contains("on")){ $("#b-rec").classList.add("on"); $("#b-lim").classList.remove("on"); $("#b-rep-wrap").style.display="none"; } setAmountLabel(); };
     setAmountLabel();
     $("#b-del") && ($("#b-del").onclick=async()=>{ if(confirm("Excluir esta conta? (some de todos os meses)")){ await sb.from("bills").delete().eq("id",existing.id); close(); toast("Conta excluída"); await refresh(); } });
   });
