@@ -481,11 +481,34 @@ function catOptions(type, selected){
   return catsByType(type).map(c=>`<option value="${esc(c.name)}" ${c.name===selected?"selected":""}>${esc(c.name)}</option>`).join("")
     + `<option value="__new__">＋ Nova categoria…</option>`;
 }
+// Campo inline "nova categoria" que aparece ao escolher "+ Nova categoria…"
+function catNewMarkup(id){
+  return `<div id="${id}-new" style="display:none;gap:8px;margin-top:8px">
+    <input class="input" id="${id}-newname" placeholder="Nome da nova categoria" style="flex:1">
+    <button type="button" class="btn sm" id="${id}-newadd" style="width:auto;white-space:nowrap">Adicionar</button>
+  </div>`;
+}
+function wireCatSelect(id, typeArg){
+  const gt=()=> typeof typeArg==="function" ? typeArg() : typeArg;
+  const sel=$("#"+id), wrap=$("#"+id+"-new"), inp=$("#"+id+"-newname"), add=$("#"+id+"-newadd");
+  if(!sel||!wrap) return;
+  sel.addEventListener("change", ()=>{ const on=sel.value==="__new__"; wrap.style.display=on?"flex":"none"; if(on) setTimeout(()=>inp.focus(),0); });
+  const doAdd=async()=>{ const name=(inp.value||"").trim(); if(!name){ inp.focus(); return; }
+    const type=gt();
+    const { error } = await sb.from("categories").insert({ user_id:state.user.id, name, type, color:type==="income"?"#22c55e":"#64748b" });
+    if(error){ toast("Não foi possível criar a categoria"); return; }
+    await loadData(); sel.innerHTML=catOptions(type,name); wrap.style.display="none"; inp.value=""; toast("Categoria criada");
+  };
+  add.onclick=doAdd;
+  inp.addEventListener("keydown",(e)=>{ if(e.key==="Enter"){ e.preventDefault(); doAdd(); } });
+}
 async function maybeCreateCategory(selectEl, type){
   if(selectEl.value!=="__new__") return selectEl.value;
-  const name=(prompt("Nome da nova categoria:")||"").trim();
-  if(!name){ selectEl.value=""; return null; }
-  await sb.from("categories").insert({ user_id:state.user.id, name, type, color:"#64748b" });
+  const inp=document.getElementById(selectEl.id+"-newname");
+  const name=((inp&&inp.value)||"").trim();
+  if(!name){ if(inp) inp.focus(); toast("Digite o nome da nova categoria e toque em Adicionar"); return null; }
+  const { error } = await sb.from("categories").insert({ user_id:state.user.id, name, type, color:type==="income"?"#22c55e":"#64748b" });
+  if(error){ toast("Não foi possível criar a categoria"); return null; }
   await loadData();
   return name;
 }
@@ -496,7 +519,7 @@ function openTxModal(type, existing){
   const body = `
     <div class="seg type-seg"><button type="button" id="t-exp" class="${type!=="income"?"active":""}">Despesa</button><button type="button" id="t-inc" class="${type==="income"?"active":""}">Receita</button></div>
     <div class="field"><label>Valor (R$)</label><input class="input num" id="t-amount" type="number" step="0.01" inputmode="decimal" required placeholder="0,00" value="${existing?existing.amount:""}"></div>
-    <div class="field"><label>Categoria</label><select class="input" id="t-cat"></select></div>
+    <div class="field"><label>Categoria</label><select class="input" id="t-cat"></select>${catNewMarkup("t-cat")}</div>
     <div class="field"><label>Descrição (opcional)</label><input class="input" id="t-desc" placeholder="Ex: mercado, salário…" value="${existing?esc(existing.description||""):""}"></div>
     <div class="field"><label>Data</label><input class="input" id="t-date" type="date" required value="${existing?existing.date:(period===ymOf(new Date())?todayStr():periodBounds(period).start)}"></div>
     <button class="btn" type="submit">${isEdit?"Salvar":"Adicionar"}</button>
@@ -509,8 +532,9 @@ function openTxModal(type, existing){
     else await sb.from("transactions").insert(row);
     close(); toast(isEdit?"Lançamento atualizado":"Lançamento adicionado"); await refresh();
   }, ()=>{
-    const fill=()=>{ $("#t-cat").innerHTML=catOptions(curType, existing?existing.category:""); };
+    const fill=()=>{ $("#t-cat").innerHTML=catOptions(curType, existing?existing.category:""); const w=$("#t-cat-new"); if(w) w.style.display="none"; };
     fill();
+    wireCatSelect("t-cat", ()=>curType);
     $("#t-exp").onclick=()=>{ curType="expense"; $("#t-exp").classList.add("active"); $("#t-inc").classList.remove("active"); fill(); };
     $("#t-inc").onclick=()=>{ curType="income"; $("#t-inc").classList.add("active"); $("#t-exp").classList.remove("active"); fill(); };
     $("#t-del") && ($("#t-del").onclick=async()=>{ if(confirm("Excluir este lançamento?")){ await sb.from("transactions").delete().eq("id",existing.id); close(); toast("Lançamento excluído"); await refresh(); } });
@@ -526,7 +550,7 @@ function openBillModal(existing){
       <div class="field"><label>Valor (R$)</label><input class="input num" id="b-amount" type="number" step="0.01" inputmode="decimal" required placeholder="0,00" value="${existing?existing.amount:""}"></div>
       <div class="field"><label>Vencimento</label><input class="input" id="b-date" type="date" required value="${existing?existing.due_date:periodBounds(period).start}"></div>
     </div>
-    <div class="field"><label>Categoria</label><select class="input" id="b-cat">${catOptions("expense", existing?existing.category:"Contas")}</select></div>
+    <div class="field"><label>Categoria</label><select class="input" id="b-cat">${catOptions("expense", existing?existing.category:"Contas")}</select>${catNewMarkup("b-cat")}</div>
     <label class="check-line"><span class="switch ${existing&&existing.recurring?"on":""}" id="b-rec"></span> Repete todo mês</label>
     <div class="field" id="b-rep-wrap" style="margin-top:8px;${existing&&existing.recurring?"":"display:none"}">
       <label>Repete por quantas vezes? <span style="color:var(--muted);font-weight:400">(vazio = sempre)</span></label>
@@ -544,6 +568,7 @@ function openBillModal(existing){
     if(res.error) throw res.error;
     close(); toast(isEdit?"Conta atualizada":"Conta adicionada"); await refresh();
   }, ()=>{
+    wireCatSelect("b-cat","expense");
     $("#b-rec").onclick=()=>{ $("#b-rec").classList.toggle("on"); $("#b-rep-wrap").style.display=$("#b-rec").classList.contains("on")?"":"none"; };
     $("#b-del") && ($("#b-del").onclick=async()=>{ if(confirm("Excluir esta conta? (some de todos os meses)")){ await sb.from("bills").delete().eq("id",existing.id); close(); toast("Conta excluída"); await refresh(); } });
   });
@@ -553,7 +578,7 @@ function openBillModal(existing){
 function openBudgetModal(existing){
   const isEdit=!!existing;
   const body=`
-    <div class="field"><label>Categoria</label><select class="input" id="bg-cat" ${isEdit?"disabled":""}>${catOptions("expense", existing?existing.category:"")}</select></div>
+    <div class="field"><label>Categoria</label><select class="input" id="bg-cat" ${isEdit?"disabled":""}>${catOptions("expense", existing?existing.category:"")}</select>${isEdit?"":catNewMarkup("bg-cat")}</div>
     <div class="field"><label>Limite mensal (R$)</label><input class="input num" id="bg-lim" type="number" step="0.01" inputmode="decimal" required placeholder="0,00" value="${existing?existing.monthly_limit:""}"></div>
     <button class="btn" type="submit">${isEdit?"Salvar":"Definir limite"}</button>
     ${isEdit?`<button class="btn danger" type="button" id="bg-del" style="margin-top:8px">Remover limite</button>`:""}`;
@@ -563,6 +588,7 @@ function openBudgetModal(existing){
     await sb.from("budgets").upsert({ user_id:state.user.id, category:cat, monthly_limit:lim }, { onConflict:"user_id,category" });
     close(); toast("Orçamento salvo"); await refresh();
   }, ()=>{
+    if(!isEdit) wireCatSelect("bg-cat","expense");
     $("#bg-del") && ($("#bg-del").onclick=async()=>{ await sb.from("budgets").delete().eq("id",existing.id); close(); toast("Limite removido"); await refresh(); });
   });
 }
