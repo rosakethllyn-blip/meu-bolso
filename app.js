@@ -211,9 +211,9 @@ function renderOnboarding(){
   const steps = `<div class="ob-steps">${[0,1,2].map(i=>`<i class="${i<=obStep?"on":""}"></i>`).join("")}</div>`;
   if(obStep===0){
     card.innerHTML = steps + `
-      <div class="ob-illu"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/><path d="M21 12h-6a2 2 0 0 0 0 4h6v-4z"/></svg></div>
-      <h2>Bem-vinda ao Meu Bolso!</h2>
-      <p>Em 3 telinhas rápidas você já começa a organizar seu dinheiro. Tudo fica salvo na nuvem e sincroniza entre seus aparelhos.</p>
+      <div style="width:160px;height:160px;margin:0 auto 6px"><img src="mascote/bobo.png?v=1" onerror="this.onerror=null;this.src='mascote/feliz.png?v=1'" style="width:100%;height:100%;object-fit:contain" alt="Bobo"></div>
+      <h2>Oi! Eu sou o Bobo 🐷</h2>
+      <p>Sou o mascote do <b>Meu Bolso</b> e vou te ajudar a cuidar do seu dinheiro. Bora organizar tudo em 3 passinhos rápidos?</p>
       <button class="btn" id="ob-next">Vamos começar</button>`;
     $("#ob-next").onclick = () => { obStep=1; renderOnboarding(); };
   } else if(obStep===1){
@@ -364,7 +364,7 @@ function updateMonthLabel(){ $("#month-label").textContent = periodLabel(period)
 
 function renderTab(tab){
   updateMonthLabel();
-  setDica(tab);
+  updateDica();
   const m = $("#app-main");
   if(tab==="inicio") return renderInicio(m);
   if(tab==="contas") return renderContas(m);
@@ -402,16 +402,20 @@ function renderInicio(m){
     html += `</div>`;
   }
 
-  const warnIco = previsto>=0 ? ic('check',16) : ic('alert',16);
-  html += `<div class="mascot mood-${mood}">
+  const sign = previsto>0 ? "pos" : previsto<0 ? "neg" : "zero";
+  const filledIco = previsto>=0
+    ? `<svg class="fic" width="18" height="18" viewBox="0 0 24 24" fill="var(--pos)"><circle cx="12" cy="12" r="10"/><path d="m8 12 3 3 5-6" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`
+    : `<svg class="fic" width="18" height="18" viewBox="0 0 24 24" fill="var(--neg)"><path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><rect x="11" y="9" width="2" height="5.5" rx="1" fill="#fff"/><circle cx="12" cy="17.5" r="1.2" fill="#fff"/></svg>`;
+  html += `<div class="mascot mood-${mood} sign-${sign}">
     <div class="mascot-img">
       <img src="mascote/${mood}.png?v=1" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'">
       <div class="mascot-ph" style="display:none">${moodEmoji}</div>
     </div>
-    <div style="min-width:0">
+    <div class="mascot-sep"></div>
+    <div class="mascot-txt">
       <div class="fc-lbl">Previsão de saldo no fim do mês</div>
-      <div class="fc-val num ${previsto>=0?"pos":"neg"}">${money(previsto)}</div>
-      <div class="fc-warn"><span style="color:var(--${previsto>=0?'pos':'neg'})">${warnIco}</span> ${phrase}</div>
+      <div class="fc-val num ${sign}">${money(previsto)}</div>
+      <div class="fc-warn">${filledIco} <span>${phrase}</span></div>
     </div>
   </div>`;
 
@@ -1002,14 +1006,36 @@ async function openSharedWithMe(){
 async function startViewing(owner){ viewOwner=owner; document.body.classList.add("viewing"); $("#modal-root").innerHTML=""; currentTab="inicio"; $$("#tabbar a").forEach(x=>x.classList.toggle("active",x.dataset.tab==="inicio")); await enterApp(); }
 function stopViewing(){ viewOwner=null; document.body.classList.remove("viewing"); $("#modal-root").innerHTML=""; enterApp(); }
 function updateViewBanner(){ const b=$("#view-banner"); if(!b) return; if(viewOwner){ b.classList.remove("hidden"); b.innerHTML=`<span>👁 Vendo as contas de <b>${esc(viewOwner.name||"outra pessoa")}</b> · somente leitura</span> <button class="btn sm ghost" type="button" id="exit-view" style="width:auto">Sair</button>`; const ev=$("#exit-view"); if(ev) ev.onclick=stopViewing; } else { b.classList.add("hidden"); b.innerHTML=""; } }
-const DICAS = {
-  inicio:["feliz","Pequenas escolhas hoje, grandes conquistas amanhã!"],
-  contas:["atencao","Organize os vencimentos e evite surpresas no fim do mês."],
-  lancar:["feliz","Registre suas movimentações assim que acontecerem para manter o saldo sempre atualizado."],
-  orcamento:["preocupado","Defina limites e veja para onde seu dinheiro está indo."],
-  metas:["festa","Cada real guardado te aproxima do seu objetivo."]
+// Dica do Bobo — 3 dicas girando, conforme a situação financeira
+const DICA_SETS = {
+  neg: [
+    "Ops! A previsão fechou no vermelho. Corte um gasto supérfluo esta semana.",
+    "Revise assinaturas que você quase não usa — todo real conta.",
+    "Antecipe o que der pra pagar e fuja dos juros."
+  ],
+  tight: [
+    "Tá no positivo, mas no limite. Segure os gastos por agora.",
+    "Guarde uma partinha antes de gastar o resto.",
+    "Uma reserva pequena hoje evita aperto amanhã."
+  ],
+  pos: [
+    "Boa! Sobrou dinheiro. Que tal mandar para uma meta?",
+    "Mês tranquilo — reserve um pouquinho para emergências.",
+    "Continue assim: pequenas escolhas, grandes conquistas!"
+  ]
 };
-function setDica(tab){ const [img,txt]=DICAS[tab]||DICAS.inicio; const el=$("#dica-frase"); if(el) el.textContent=txt; const im=document.querySelector(".dica img"); if(im) im.src=`mascote/${img}.png?v=1`; }
+let dicaTimer=null, dicaIdx=0;
+function financeSign(){ const t=totals(); const previsto=t.bal - t.toPay; const r=previsto/Math.max(t.inc,1); if(previsto<0) return "neg"; if(r<0.1) return "tight"; return "pos"; }
+function updateDica(){
+  const sign=financeSign();
+  const img={neg:"alerta",tight:"atencao",pos:"feliz"}[sign];
+  const im=document.querySelector(".dica img"); if(im) im.src=`mascote/${img}.png?v=1`;
+  const tips=DICA_SETS[sign];
+  const setTip=(i)=>{ dicaIdx=((i%tips.length)+tips.length)%tips.length; const el=$("#dica-frase"); if(el) el.textContent=tips[dicaIdx]; document.querySelectorAll(".dica .dots i").forEach((d,k)=>d.classList.toggle("on",k===dicaIdx)); };
+  setTip(0);
+  clearInterval(dicaTimer);
+  dicaTimer=setInterval(()=>setTip(dicaIdx+1), 4800);
+}
 function openCatsModal(){
   const list=(type)=> catsByType(type).map(c=>`<div class="item"><span class="dot" style="background:${c.color}"></span><div class="grow"><div class="t1">${esc(c.name)}</div></div><button class="mini" data-delcat="${c.id}">excluir</button></div>`).join("")||`<div class="t2" style="padding:8px 0">Nenhuma</div>`;
   const body=`<div class="sub" style="margin-bottom:6px">Despesas</div>${list("expense")}
