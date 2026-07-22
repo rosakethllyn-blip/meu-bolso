@@ -46,9 +46,58 @@ const ICON = {
   clock:'<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
   check:'<path d="M21.8 10A10 10 0 1 1 17 3.3"/><path d="m9 11 3 3L22 4"/>',
   piggy:'<path d="M19 5c-1.5 0-2.8 1.4-3 2-3.5-1.5-11-.3-11 5 0 1.8 0 3 2 4.5V20h4v-2h3v2h4v-4c1-.5 1.7-1 2-2h2v-4h-2c0-1-.5-1.5-1-2V5z"/><path d="M2 9v1c0 1.1.9 2 2 2h1"/><path d="M16 11h.01"/>',
-  edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>'
+  edit:'<path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/>',
+  wallet:'<path d="M19 7V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-2"/><path d="M21 12h-6a2 2 0 0 0 0 4h6v-4z"/>',
+  up:'<polyline points="22 7 13.5 15.5 8.5 10.5 2 17"/><polyline points="16 7 22 7 22 13"/>',
+  down:'<polyline points="22 17 13.5 8.5 8.5 13.5 2 7"/><polyline points="16 17 22 17 22 11"/>',
+  cal:'<rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/>',
+  report:'<line x1="12" y1="20" x2="12" y2="10"/><line x1="18" y1="20" x2="18" y2="4"/><line x1="6" y1="20" x2="6" y2="16"/>',
+  home:'<path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/><path d="M9 22V12h6v10"/>',
+  car:'<path d="M5 17H3v-6l2-5h11l4 5v6h-2"/><path d="M9 17h6"/><circle cx="7.5" cy="17" r="1.5"/><circle cx="16.5" cy="17" r="1.5"/>',
+  health:'<path d="M11 3h2v8h8v2h-8v8h-2v-8H3v-2h8z"/>',
+  book:'<path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/>',
+  game:'<rect x="2" y="6" width="20" height="12" rx="4"/><line x1="7" y1="12" x2="11" y2="12"/><line x1="9" y1="10" x2="9" y2="14"/><circle cx="16" cy="11" r="1"/><circle cx="18" cy="14" r="1"/>',
+  bag:'<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>',
+  file:'<path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/>',
+  card:'<rect x="2" y="5" width="20" height="14" rx="2"/><line x1="2" y1="10" x2="22" y2="10"/>',
+  building:'<rect x="5" y="2" width="14" height="20" rx="1.5"/><path d="M9 6h.01M15 6h.01M9 10h.01M15 10h.01M9 14h.01M15 14h.01"/><path d="M10 22v-3h4v3"/>',
+  cash:'<rect x="2" y="6" width="20" height="12" rx="2"/><circle cx="12" cy="12" r="2.5"/><path d="M6 12h.01M18 12h.01"/>',
+  search:'<circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/>',
+  filter:'<polygon points="22 3 2 3 10 12.5 10 19 14 21 14 12.5"/>',
+  sort:'<path d="m3 16 4 4 4-4"/><path d="M7 20V4"/><path d="m21 8-4-4-4 4"/><path d="M17 4v16"/>',
+  plus:'<circle cx="12" cy="12" r="10"/><path d="M8 12h8"/><path d="M12 8v8"/>'
 };
 function ic(name, size=18){ return `<svg class="ic" width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${ICON[name]||""}</svg>`; }
+
+/* Cabeçalho de página padrão (título + subtítulo + ações) */
+function pageHeader(title, sub, actions=""){
+  return `<div class="phead"><div><h1 class="page-title" style="margin:0 0 4px">${esc(title)}</h1><p class="page-sub">${esc(sub)}</p></div>${actions?`<div class="phead-actions">${actions}</div>`:""}</div>`;
+}
+/* Card de resumo com ícone */
+function sumCard(icoClass, icoKey, label, value, valClass, sub){
+  return `<div class="scard"><div class="ico ${icoClass}">${ic(icoKey,20)}</div><div class="lbl">${label}</div><div class="val num ${valClass||""}">${value}</div>${sub?`<div class="sub2">${sub}</div>`:""}</div>`;
+}
+/* Badge colorido por categoria (ícone + cor da categoria) */
+function catColorOf(name){ const c=data.categories.find(x=>x.name===name); return c?c.color:null; }
+function catIconKey(n){ n=(n||"").toLowerCase();
+  if(/aliment|mercado|comida|restaur|lanche/.test(n)) return "bag";
+  if(/morad|alug|casa|imóv|imov|condom/.test(n)) return "home";
+  if(/transp|gasol|combu|uber|carro|ônibus|onibus/.test(n)) return "car";
+  if(/saúde|saude|remé|remed|farm|médic|medic|consult/.test(n)) return "health";
+  if(/educ|curso|escola|facul|livro/.test(n)) return "book";
+  if(/lazer|jogo|game|divers|cinema|viagem/.test(n)) return "game";
+  if(/compra|roupa|vestu/.test(n)) return "bag";
+  if(/assinatura|stream|netflix|spotify|prime/.test(n)) return "card";
+  if(/cnpj|mei|das|empresa|imposto/.test(n)) return "building";
+  if(/salár|salari|renda|freela|receb|pagamento/.test(n)) return "cash";
+  if(/cart|nubank|banco|emprést|emprest|financ|negoci|consórc|consorc/.test(n)) return "card";
+  if(/invest/.test(n)) return "up";
+  if(/conta|luz|água|agua|energia|internet|telefone|celular|assinat/.test(n)) return "file";
+  return "tag";
+}
+function catBadge(name){ const color=catColorOf(name)||"#94a3b8"; return `<span class="cbadge" style="background:color-mix(in srgb,${color} 16%,transparent);color:${color}">${ic(catIconKey(name),20)}</span>`; }
+/* Rótulo de data relativa (Hoje/Amanhã/Em X dias) */
+function relTag(dueStr){ const d=daysUntil(dueStr); if(d<0) return `<span class="reltag soon">Vencida</span>`; if(d===0) return `<span class="reltag today">Hoje</span>`; if(d===1) return `<span class="reltag">Amanhã</span>`; if(d<=5) return `<span class="reltag">Em ${d} dias</span>`; return ""; }
 
 /* ---------------- Toast ---------------- */
 let toastT;
@@ -59,12 +108,12 @@ function initTheme(){
   const saved = localStorage.getItem("mb-theme");
   if(saved) document.documentElement.setAttribute("data-theme",saved);
 }
-$("#theme-toggle").onclick = () => {
+function toggleTheme(){
   const cur = document.documentElement.getAttribute("data-theme") || "light";
   const next = cur==="dark" ? "light" : "dark";
   document.documentElement.setAttribute("data-theme",next);
   localStorage.setItem("mb-theme",next);
-};
+}
 initTheme();
 
 /* ================= AUTH ================= */
@@ -139,6 +188,8 @@ async function handleSession(session){
 
 async function enterApp(){
   show("screen-app");
+  const initial = (state.profile.name||"").trim().charAt(0).toUpperCase() || "?";
+  const av=$("#avatar-initial"); if(av) av.textContent=initial;
   await loadData();
   renderTab(currentTab);
   updateBell();
@@ -303,6 +354,7 @@ function updateMonthLabel(){ $("#month-label").textContent = periodLabel(period)
 
 function renderTab(tab){
   updateMonthLabel();
+  setDica(tab);
   const m = $("#app-main");
   if(tab==="inicio") return renderInicio(m);
   if(tab==="contas") return renderContas(m);
@@ -330,70 +382,94 @@ function renderInicio(m){
   else { mood="alerta"; phrase="Alerta! A previsão está bem negativa. Hora de cortar gastos."; }
   const moodEmoji = { festa:"🥳", feliz:"😄", atencao:"🤔", preocupado:"😥", alerta:"😱" }[mood];
 
-  let html = `<h1 class="page-title">Olá${state.profile.name?`, ${esc(state.profile.name.split(" ")[0])}`:""}</h1>`;
+  const nome = state.profile.name ? `, ${esc(state.profile.name.split(" ")[0])}` : "";
+  let html = pageHeader(`Olá${nome}`, "Aqui está o resumo das suas finanças");
 
   if(late.length || due.length){
-    html += `<div style="margin-bottom:10px">`;
+    html += `<div style="margin-bottom:12px">`;
     if(late.length) html += `<div class="alert-bar late">${ic('alert',16)} ${late.length} conta(s) vencida(s) — ${money(late.reduce((s,b)=>s+ +b._amount,0))}</div>`;
     if(due.length) html += `<div class="alert-bar due">${ic('clock',16)} ${due.length} conta(s) vencendo em breve</div>`;
     html += `</div>`;
   }
 
-  // Card do mascote + previsão de saldo
+  const warnIco = previsto>=0 ? ic('check',16) : ic('alert',16);
   html += `<div class="mascot mood-${mood}">
     <div class="mascot-img">
       <img src="mascote/${mood}.png?v=1" alt="" onerror="this.style.display='none';this.nextElementSibling.style.display='grid'">
       <div class="mascot-ph" style="display:none">${moodEmoji}</div>
     </div>
     <div style="min-width:0">
-      <div class="lbl">Previsão de saldo no fim do mês</div>
-      <div class="val num ${previsto>=0?"pos":"neg"}" style="font-size:24px">${money(previsto)}</div>
-      <div class="phrase">${phrase}</div>
+      <div class="fc-lbl">Previsão de saldo no fim do mês</div>
+      <div class="fc-val num ${previsto>=0?"pos":"neg"}">${money(previsto)}</div>
+      <div class="fc-warn"><span style="color:var(--${previsto>=0?'pos':'neg'})">${warnIco}</span> ${phrase}</div>
     </div>
   </div>`;
 
   html += `<div class="summary">
-    <div class="scard big"><div class="lbl">Saldo do mês</div><div class="val num ${t.bal>=0?"pos":"neg"}">${money(t.bal)}</div></div>
-    <div class="scard"><div class="lbl">Entradas</div><div class="val num pos">${money(t.inc)}</div></div>
-    <div class="scard"><div class="lbl">Saídas</div><div class="val num neg">${money(t.exp)}</div></div>
-    <div class="scard"><div class="lbl">A pagar</div><div class="val num warn">${money(t.toPay)}</div></div>
+    ${sumCard('acc','wallet','Saldo do mês', money(t.bal), t.bal>=0?'pos':'neg', 'no mês')}
+    ${sumCard('pos','up','Entradas', money(t.inc), 'pos', 'recebido')}
+    ${sumCard('neg','down','Saídas', money(t.exp), 'neg', 'gasto')}
+    ${sumCard('warn','cal','A pagar', money(t.toPay), 'warn', 'em aberto')}
   </div>`;
 
-  // Donut despesas por categoria
-  html += `<div class="section"><h2>Despesas por categoria</h2><div class="sub">${periodLabel(period)} · inclui contas a pagar (previsto)</div><div id="donut-slot"></div></div>`;
-  // Evolução
-  html += `<div class="section"><h2>Últimos 6 meses</h2><div class="sub">Entradas x Saídas</div><div id="evo-slot" class="empty">Carregando…</div></div>`;
+  // Gráficos lado a lado
+  html += `<div class="grid-2col">
+    <div class="section"><h2>Despesas por categoria</h2><div class="sub">${periodLabel(period)} · inclui contas a pagar (previsto)</div><div id="donut-slot"></div><button class="report-btn" id="rep-btn">${ic('report',16)} Ver relatório completo</button></div>
+    <div class="section"><h2>Últimos 6 meses</h2><div class="sub">Entradas x Saídas</div><div id="evo-slot" class="empty">Carregando…</div></div>
+  </div>`;
 
-  // Próximas contas
-  html += `<div class="section"><div class="row-head"><h2>Próximas contas</h2><button class="mini" id="go-contas">ver todas ›</button></div>`;
-  if(!upcoming.length) html += `<div class="empty">${ic('check',22)}<div>Nenhuma conta em aberto neste mês</div></div>`;
-  else html += upcoming.map(b=>billRow(b)).join("");
-  html += `</div>`;
+  // Próximas contas (tabela)
+  const upTable = upcoming.length ? `<div class="ptable-wrap"><table class="ptable">
+    <thead><tr><th>Vencimento</th><th>Descrição</th><th>Categoria</th><th>Valor</th><th>Status</th><th></th></tr></thead>
+    <tbody>${upcoming.map(b=>{
+      const st=billStatus(b); const status = st==="late"?`<span class="pill late">Vencida</span>`:`<span class="pill due">A pagar</span>`;
+      return `<tr>
+        <td style="white-space:nowrap">${fmtDate(b._due)}/${b._due.slice(0,4)} ${relTag(b._due)}</td>
+        <td><b>${esc(b.name)}</b></td>
+        <td><span style="display:inline-flex;align-items:center;gap:7px"><span class="dot" style="background:${catColorOf(b.category)||'#94a3b8'}"></span>${esc(b.category||"—")}</span></td>
+        <td class="num">${money(b._amount)}</td>
+        <td>${status}</td>
+        <td style="text-align:right"><button class="mini" data-editbill="${b.id}">${ic('edit',15)}</button></td>
+      </tr>`;
+    }).join("")}</tbody></table></div>` : `<div class="empty">${ic('check',22)}<div>Nenhuma conta em aberto neste mês</div></div>`;
+  html += `<div class="section"><div class="row-head"><h2>Próximas contas ${upcoming.length?`<span class="count-pill">${upcoming.length}</span>`:""}</h2><button class="mini" id="go-contas">Ver todas ›</button></div>${upTable}</div>`;
 
   m.innerHTML = html;
   $("#go-contas") && ($("#go-contas").onclick = () => { document.querySelector('#tabbar a[data-tab="contas"]').click(); });
+  $("#rep-btn") && ($("#rep-btn").onclick = openCategoryReport);
   bindBillRows(m);
   $("#donut-slot").innerHTML = donutHTML();
   loadEvolution();
 }
+function openCategoryReport(){
+  const {entries,total} = categoryTotals();
+  const rows = entries.length ? entries.map(([name,val])=>`<div class="item">${catBadge(name)}<div class="grow"><div class="t1">${esc(name)}</div><div class="t2">${Math.round(val/total*100)}% do total</div></div><div class="amt num">${money(val)}</div></div>`).join("") : `<div class="empty">Sem despesas neste mês.</div>`;
+  const body = `<div class="sub" style="margin:-6px 0 8px;text-transform:capitalize">${periodLabel(period)}</div>${rows}
+    <div style="display:flex;justify-content:space-between;margin-top:14px;padding-top:12px;border-top:1px solid var(--line);font-weight:800"><span>Total</span><span class="num">${money(total)}</span></div>
+    <button class="btn ghost" type="button" id="rep-close" style="margin-top:14px">Fechar</button>`;
+  openModal("Despesas por categoria", body, async()=>{}, ()=>{ $("#rep-close").onclick=()=>{ $("#modal-root").innerHTML=""; }; });
+}
 
-function donutHTML(){
-  const exp = data.transactions.filter(t=>t.type==="expense").map(t=>({category:t.category,amount:Number(t.amount)})).concat(allBillsExpenses());
-  if(!exp.length) return `<div class="empty">Sem despesas lançadas neste mês.</div>`;
-  const map = {};
-  exp.forEach(t=>{ const k=t.category||"Outros"; map[k]=(map[k]||0)+Number(t.amount); });
+function categoryTotals(){
+  const src = data.transactions.filter(t=>t.type==="expense").map(t=>({category:t.category,amount:Number(t.amount)})).concat(allBillsExpenses());
+  const map={}; src.forEach(t=>{ const k=t.category||"Outros"; map[k]=(map[k]||0)+Number(t.amount); });
   const entries = Object.entries(map).sort((a,b)=>b[1]-a[1]);
   const total = entries.reduce((s,e)=>s+e[1],0);
-  const colorFor = (name)=> (data.categories.find(c=>c.name===name&&c.type==="expense")||{}).color || "#94a3b8";
+  return { entries, total };
+}
+function donutHTML(){
+  const { entries, total } = categoryTotals();
+  if(!entries.length) return `<div class="empty">Sem despesas lançadas neste mês.</div>`;
+  const colorFor = (name)=> catColorOf(name) || "#94a3b8";
   const R=54, C=2*Math.PI*R; let off=0;
-  const segs = entries.map(([name,val])=>{ const frac=val/total; const len=frac*C; const s=`<circle r="${R}" cx="70" cy="70" fill="none" stroke="${colorFor(name)}" stroke-width="22" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)"/>`; off+=len; return s; }).join("");
-  const legend = entries.map(([name,val])=>`<span><i style="background:${colorFor(name)}"></i>${esc(name)} · ${money(val)}</span>`).join("");
-  return `<div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:8px">
-    <svg width="140" height="140" viewBox="0 0 140 140" style="flex:none">${segs}
-      <text x="70" y="66" text-anchor="middle" font-size="11" fill="var(--muted)">Total</text>
-      <text x="70" y="82" text-anchor="middle" font-size="15" font-weight="800" fill="var(--ink)">${money(total).replace("R$","R$ ")}</text>
+  const segs = entries.map(([name,val])=>{ const frac=val/total; const len=frac*C; const s=`<circle r="${R}" cx="70" cy="70" fill="none" stroke="${colorFor(name)}" stroke-width="20" stroke-dasharray="${len} ${C-len}" stroke-dashoffset="${-off}" transform="rotate(-90 70 70)"/>`; off+=len; return s; }).join("");
+  const rows = entries.slice(0,5).map(([name,val])=>`<div class="legend-row"><span class="nm"><i style="background:${colorFor(name)}"></i><span>${esc(name)}</span></span><span class="vl num">${money(val)}</span><span class="pc">${Math.round(val/total*100)}%</span></div>`).join("");
+  return `<div style="display:flex;gap:20px;align-items:center;flex-wrap:wrap;margin-top:10px">
+    <svg width="132" height="132" viewBox="0 0 140 140" style="flex:none">${segs}
+      <text x="70" y="64" text-anchor="middle" font-size="11" fill="var(--muted)">Total</text>
+      <text x="70" y="82" text-anchor="middle" font-size="15" font-weight="800" fill="var(--ink)">${money(total)}</text>
     </svg>
-    <div class="legend" style="flex:1;min-width:160px">${legend}</div></div>`;
+    <div class="legend-rows">${rows}</div></div>`;
 }
 
 async function loadEvolution(){
@@ -408,21 +484,27 @@ async function loadEvolution(){
   // adiciona contas pagas como saídas em cada mês
   const { data:pays } = await sb.from("bill_payments").select("period,bill_id").gte("period",months[0]).lte("period",period);
   (pays||[]).forEach(p=>{ const b=data.bills.find(x=>x.id===p.bill_id); if(b && agg[p.period]) agg[p.period].exp += billAmountFor(b, p.period); });
-  const max = Math.max(1, ...months.flatMap(mm=>[agg[mm].inc,agg[mm].exp]));
+  const rawMax = Math.max(1, ...months.flatMap(mm=>[agg[mm].inc,agg[mm].exp]));
+  const niceMax = niceCeil(rawMax);
+  const fmtK = v => v>=1000 ? (v/1000).toFixed(v%1000?1:0).replace(".",",")+"K" : String(Math.round(v));
+  const yLabels = [1,.75,.5,.25,0].map(f=>`<span>${f?fmtK(niceMax*f):"0"}</span>`).join("");
+  const grid = [0,1,2,3].map(()=>`<i></i>`).join("");
   const bars = months.map(mm=>{
-    const a=agg[mm]; const hi=(a.inc/max*100), he=(a.exp/max*100);
+    const a=agg[mm]; const hi=(a.inc/niceMax*100), he=(a.exp/niceMax*100);
     const lbl=new Date(mm+"-01").toLocaleDateString("pt-BR",{month:"short"}).replace(".","");
-    return `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:4px">
-      <div style="display:flex;gap:3px;align-items:flex-end;height:90px">
-        <div title="Entradas ${money(a.inc)}" style="width:11px;height:${hi}%;min-height:2px;background:var(--pos);border-radius:3px"></div>
-        <div title="Saídas ${money(a.exp)}" style="width:11px;height:${he}%;min-height:2px;background:var(--neg);border-radius:3px"></div>
-      </div>
-      <div style="font-size:11px;color:var(--muted);text-transform:capitalize">${lbl}</div></div>`;
+    return `<div class="evo-col"><div class="pair">
+        <div title="Entradas ${money(a.inc)}" style="width:12px;height:${hi}%;min-height:2px;background:var(--pos);border-radius:4px 4px 0 0"></div>
+        <div title="Saídas ${money(a.exp)}" style="width:12px;height:${he}%;min-height:2px;background:var(--neg);border-radius:4px 4px 0 0"></div>
+      </div><div class="lb">${lbl}</div></div>`;
   }).join("");
   slot.classList.remove("empty");
-  slot.innerHTML = `<div style="display:flex;gap:6px;align-items:flex-end;margin-top:12px">${bars}</div>
-    <div class="legend" style="margin-top:10px"><span><i style="background:var(--pos)"></i>Entradas</span><span><i style="background:var(--neg)"></i>Saídas</span></div>`;
+  slot.innerHTML = `<div class="evo" style="margin-top:12px">
+      <div class="evo-y">${yLabels}</div>
+      <div class="evo-plot"><div class="evo-grid">${grid}</div><div class="evo-bars">${bars}</div></div>
+    </div>
+    <div class="legend" style="margin-top:12px"><span><i style="background:var(--pos)"></i>Entradas</span><span><i style="background:var(--neg)"></i>Saídas</span></div>`;
 }
+function niceCeil(x){ if(x<=0) return 1; const p=Math.pow(10,Math.floor(Math.log10(x))); const n=x/p; const m=n<=1?1:n<=2?2:n<=5?5:10; return m*p; }
 
 /* ================= CONTAS ================= */
 function billRow(b){
@@ -435,6 +517,7 @@ function billRow(b){
     : (esc(b.category||"—")+(extra?` · <span style="color:var(--accent-ink)">${extra}</span>`:""));
   return `<div class="item ${b._paid?"paid-row":""}" data-bill="${b.id}">
     <button class="chk ${b._paid?"on":""}" data-pay="${b.id}" aria-label="Marcar paga">✓</button>
+    ${catBadge(b.category)}
     <div class="grow"><div class="t1">${b.is_invoice?`<button type="button" class="linkname" data-invdetail="${b.id}">${esc(b.name)} <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="m9 18 6-6-6-6"/></svg></button>`:esc(b.name)}</div>
       <div class="t2">Vence ${fmtDate(b._due)} · ${sub}</div></div>
     ${pill}
@@ -476,10 +559,14 @@ async function togglePaid(billId){
 function renderContas(m){
   const bills = billsForPeriod();
   const openSum = bills.filter(b=>!b._paid).reduce((s,b)=>s+ +b._amount,0);
-  let html = `<div class="row-head"><h1 class="page-title" style="margin:0">Contas a pagar</h1><button class="btn sm" id="add-bill">＋ Nova conta</button></div>`;
-  html += `<div class="summary" style="grid-template-columns:1fr 1fr"><div class="scard"><div class="lbl">Em aberto</div><div class="val num warn">${money(openSum)}</div></div><div class="scard"><div class="lbl">Contas no mês</div><div class="val num">${bills.length}</div></div></div>`;
-  html += `<div class="section">`;
-  if(!bills.length) html += `<div class="empty"><div>Nenhuma conta cadastrada para ${periodLabel(period)}.</div><button class="btn sm" id="add-bill2" style="margin-top:12px">＋ Adicionar conta</button></div>`;
+  const actions = `<button class="btn sm" id="add-bill">${ic('plus',16)} Nova conta</button>`;
+  let html = pageHeader("Contas a pagar", "Acompanhe vencimentos, pagamentos e valores em aberto.", actions);
+  html += `<div class="summary two">
+    ${sumCard('warn','wallet','Em aberto', money(openSum), 'warn')}
+    ${sumCard('acc','cal','Contas no mês', String(bills.length))}
+  </div>`;
+  html += `<div class="section list-card">`;
+  if(!bills.length) html += `<div class="empty"><div>Nenhuma conta cadastrada para ${periodLabel(period)}.</div><button class="btn sm" id="add-bill2" style="margin-top:12px">${ic('plus',16)} Adicionar conta</button></div>`;
   else html += bills.map(billRow).join("");
   html += `</div>`;
   m.innerHTML = html;
@@ -491,24 +578,49 @@ function renderContas(m){
 /* ================= LANÇAMENTOS ================= */
 function renderLancar(m){
   const txs = data.transactions;
-  let html = `<div class="row-head"><h1 class="page-title" style="margin:0">Lançamentos</h1>
-    <button class="btn sm" id="add-inc">＋ Receita</button></div>`;
-  html += `<div class="section">`;
-  if(!txs.length) html += `<div class="empty"><div>Nenhum lançamento em ${periodLabel(period)}.</div><div style="margin-top:6px;font-size:13px">Registre suas receitas e despesas para acompanhar o saldo.</div></div>`;
-  else html += txs.map(t=>{
-    const c=(data.categories.find(x=>x.name===t.category&&x.type===t.type)||{}).color||"#94a3b8";
-    return `<div class="item">
-      <span class="dot" style="background:${c}"></span>
+  const inc = txs.filter(t=>t.type==="income").reduce((s,t)=>s+ +t.amount,0);
+  const exp = txs.filter(t=>t.type==="expense").reduce((s,t)=>s+ +t.amount,0);
+  const actions = `<button class="btn sm" id="add-inc">${ic('plus',16)} Receita</button>`;
+  let html = pageHeader("Lançamentos", "Registre e acompanhe suas receitas e despesas do mês.", actions);
+  html += `<div class="summary three">
+    ${sumCard('pos','up','Receitas no mês', money(inc), 'pos')}
+    ${sumCard('neg','down','Despesas no mês', money(exp), 'neg')}
+    ${sumCard('acc','report','Total de lançamentos', String(txs.length))}
+  </div>`;
+  html += `<div class="section">
+    <div class="toolbar">
+      <div class="tb-search">${ic('search',16)}<input id="tx-search" placeholder="Buscar lançamento" /></div>
+      <div class="tb-select">${ic('filter',15)}<select id="tx-filter"><option value="all">Todos</option><option value="income">Receitas</option><option value="expense">Despesas</option></select></div>
+      <div class="tb-select">${ic('sort',15)}<select id="tx-sort"><option value="recent">Mais recentes</option><option value="old">Mais antigos</option><option value="high">Maior valor</option></select></div>
+    </div>
+    <div id="tx-list"></div>
+  </div>`;
+  m.innerHTML = html;
+  $("#add-inc").onclick = () => openTxModal("income");
+  const renderList = ()=>{
+    const q=($("#tx-search").value||"").toLowerCase().trim();
+    const f=$("#tx-filter").value, sort=$("#tx-sort").value;
+    let list = txs.slice();
+    if(f!=="all") list=list.filter(t=>t.type===f);
+    if(q) list=list.filter(t=>((t.description||"")+" "+(t.category||"")).toLowerCase().includes(q));
+    if(sort==="old") list.sort((a,b)=>a.date.localeCompare(b.date));
+    else if(sort==="high") list.sort((a,b)=>b.amount-a.amount);
+    else list.sort((a,b)=>b.date.localeCompare(a.date));
+    const box=$("#tx-list");
+    if(!list.length){ box.innerHTML=`<div class="empty"><div>${txs.length?"Nenhum lançamento encontrado.":"Nenhum lançamento em "+periodLabel(period)+"."}</div>${txs.length?"":'<div style="margin-top:6px;font-size:13px">Registre suas receitas para acompanhar o saldo.</div>'}</div>`; return; }
+    box.innerHTML = list.map(t=>`<div class="item">
+      ${catBadge(t.category)}
       <div class="grow"><div class="t1">${esc(t.description||t.category||(t.type==="income"?"Receita":"Despesa"))}</div>
         <div class="t2">${esc(t.category||"—")} · ${fmtDate(t.date)}</div></div>
       <div class="amt num" style="color:${t.type==="income"?"var(--pos)":"var(--neg)"}">${t.type==="income"?"+":"−"}${money(t.amount)}</div>
       <button class="mini" data-edittx="${t.id}">${ic('edit',15)}</button>
-    </div>`;
-  }).join("");
-  html += `</div>`;
-  m.innerHTML = html;
-  $("#add-inc").onclick = () => openTxModal("income");
-  $$("[data-edittx]",m).forEach(el=> el.onclick = () => openTxModal(null, data.transactions.find(x=>x.id===el.dataset.edittx)));
+    </div>`).join("");
+    $$("[data-edittx]",box).forEach(el=> el.onclick = () => openTxModal(null, data.transactions.find(x=>x.id===el.dataset.edittx)));
+  };
+  $("#tx-search").oninput = renderList;
+  $("#tx-filter").onchange = renderList;
+  $("#tx-sort").onchange = renderList;
+  renderList();
 }
 
 /* ================= ORÇAMENTO ================= */
@@ -516,15 +628,16 @@ function renderOrcamento(m){
   const spentByCat = {};
   data.transactions.filter(t=>t.type==="expense").forEach(t=>{ const k=t.category||"Outros"; spentByCat[k]=(spentByCat[k]||0)+ +t.amount; });
   paidBillsForPeriod().forEach(b=>{ spentByCat[b.category]=(spentByCat[b.category]||0)+b.amount; });
-  let html = `<div class="row-head"><h1 class="page-title" style="margin:0">Orçamento</h1><button class="btn sm" id="add-budget">＋ Definir limite</button></div>`;
-  html += `<div class="section"><div class="sub" style="margin-bottom:14px">Limites de gasto por categoria em ${periodLabel(period)}.</div>`;
+  const actions = `<button class="btn sm" id="add-budget">${ic('plus',16)} Definir limite</button>`;
+  let html = pageHeader("Orçamento", "Defina limites de gasto por categoria e acompanhe.", actions);
+  html += `<div class="section"><div class="sub" style="margin-bottom:14px">Limites de gasto em ${periodLabel(period)}.</div>`;
   if(!data.budgets.length) html += `<div class="empty">Você ainda não definiu limites. Defina quanto quer gastar por categoria.</div>`;
   else html += data.budgets.map(bd=>{
     const spent=spentByCat[bd.category]||0; const lim=Number(bd.monthly_limit); const pct=lim>0?Math.min(100,spent/lim*100):0; const over=spent>lim;
     const color=(data.categories.find(c=>c.name===bd.category&&c.type==="expense")||{}).color||"var(--accent)";
     return `<div style="padding:12px 0;border-top:1px solid var(--line-2)">
       <div style="display:flex;justify-content:space-between;align-items:center;gap:8px">
-        <div style="display:flex;align-items:center;gap:8px"><span class="dot" style="background:${color}"></span><b>${esc(bd.category)}</b></div>
+        <div style="display:flex;align-items:center;gap:10px">${catBadge(bd.category)}<b>${esc(bd.category)}</b></div>
         <div style="display:flex;align-items:center;gap:8px"><span class="num" style="font-size:13.5px;color:${over?"var(--neg)":"var(--muted)"}">${money(spent)} / ${money(lim)}</span>
         <button class="mini" data-editbud="${esc(bd.category)}">${ic('edit',15)}</button></div>
       </div>
@@ -540,7 +653,8 @@ function renderOrcamento(m){
 
 /* ================= METAS ================= */
 function renderMetas(m){
-  let html = `<div class="row-head"><h1 class="page-title" style="margin:0">Metas de economia</h1><button class="btn sm" id="add-goal">＋ Nova meta</button></div>`;
+  const actions = `<button class="btn sm" id="add-goal">${ic('plus',16)} Nova meta</button>`;
+  let html = pageHeader("Metas de economia", "Guarde para seus objetivos e acompanhe o progresso.", actions);
   if(!data.goals.length){ html += `<div class="section"><div class="empty"><div>Nenhuma meta ainda.</div><div style="margin-top:6px;font-size:13px">Crie uma meta (viagem, reserva de emergência…) e acompanhe o progresso.</div></div></div>`; }
   else html += data.goals.map(g=>{
     const pct = g.target>0?Math.min(100, g.saved/g.target*100):0;
@@ -807,13 +921,23 @@ $("#bell").onclick = () => {
 };
 $("#menu-btn").onclick = () => {
   const body=`
+    <button class="btn ghost" type="button" id="mm-theme" style="justify-content:flex-start;margin-bottom:8px">◐ Alternar tema (claro/escuro)</button>
     <button class="btn ghost" type="button" id="mm-cats" style="justify-content:flex-start;margin-bottom:8px">${ic('tag',18)} Gerenciar categorias</button>
     <button class="btn ghost" type="button" id="mm-logout" style="justify-content:flex-start">${ic('logout',18)} Sair da conta</button>`;
   openModal(state.profile.name?`Olá, ${esc(state.profile.name.split(" ")[0])}`:"Menu", body, async()=>{}, ()=>{
+    $("#mm-theme").onclick=()=>{ toggleTheme(); };
     $("#mm-logout").onclick=async()=>{ await sb.auth.signOut(); location.reload(); };
     $("#mm-cats").onclick=()=>{ $("#modal-root").innerHTML=""; openCatsModal(); };
   });
 };
+const DICAS = {
+  inicio:["feliz","Pequenas escolhas hoje, grandes conquistas amanhã!"],
+  contas:["atencao","Organize os vencimentos e evite surpresas no fim do mês."],
+  lancar:["feliz","Registre suas movimentações assim que acontecerem para manter o saldo sempre atualizado."],
+  orcamento:["preocupado","Defina limites e veja para onde seu dinheiro está indo."],
+  metas:["festa","Cada real guardado te aproxima do seu objetivo."]
+};
+function setDica(tab){ const [img,txt]=DICAS[tab]||DICAS.inicio; const el=$("#dica-frase"); if(el) el.textContent=txt; const im=document.querySelector(".dica img"); if(im) im.src=`mascote/${img}.png?v=1`; }
 function openCatsModal(){
   const list=(type)=> catsByType(type).map(c=>`<div class="item"><span class="dot" style="background:${c.color}"></span><div class="grow"><div class="t1">${esc(c.name)}</div></div><button class="mini" data-delcat="${c.id}">excluir</button></div>`).join("")||`<div class="t2" style="padding:8px 0">Nenhuma</div>`;
   const body=`<div class="sub" style="margin-bottom:6px">Despesas</div>${list("expense")}
