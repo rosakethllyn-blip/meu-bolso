@@ -27,6 +27,9 @@ const state = { user: null, profile: null };
 const data = { categories: [], transactions: [], bills: [], payments: [], budgets: [], goals: [] };
 let period = ymOf(new Date());
 let currentTab = "inicio";
+let viewOwner = null; // quando visualizando as contas de outra pessoa (somente leitura)
+function effUid(){ return viewOwner ? viewOwner.id : (state.user && state.user.id); }
+function readOnly(){ if(viewOwner){ toast("Modo somente leitura"); return true; } return false; }
 
 function ymOf(d){ return d.getFullYear()+"-"+String(d.getMonth()+1).padStart(2,"0"); }
 function todayStr(){ return ymOf(new Date())+"-"+String(new Date().getDate()).padStart(2,"0"); }
@@ -188,11 +191,16 @@ async function handleSession(session){
 
 async function enterApp(){
   show("screen-app");
-  const initial = (state.profile.name||"").trim().charAt(0).toUpperCase() || "?";
-  const av=$("#avatar-initial"); if(av) av.textContent=initial;
+  setAvatar();
+  updateViewBanner();
   await loadData();
   renderTab(currentTab);
   updateBell();
+}
+function setAvatar(){
+  const el=$("#avatar-initial"); if(!el) return;
+  if(state.profile && state.profile.avatar){ el.innerHTML=`<img src="${state.profile.avatar}" alt="">`; el.classList.add("has-img"); }
+  else { el.textContent=((state.profile&&state.profile.name)||"").trim().charAt(0).toUpperCase()||"?"; el.classList.remove("has-img"); }
 }
 
 /* ================= ONBOARDING ================= */
@@ -248,11 +256,12 @@ function renderOnboarding(){
 /* ================= DATA ================= */
 // Dados que não mudam com o mês — carregados uma vez (e após alterações)
 async function loadStatic(){
+  const uid = effUid();
   const [cats, bills, buds, goals] = await Promise.all([
-    sb.from("categories").select("*").order("type").order("name"),
-    sb.from("bills").select("*"),
-    sb.from("budgets").select("*"),
-    sb.from("goals").select("*").order("created_at"),
+    sb.from("categories").select("*").eq("user_id",uid).order("type").order("name"),
+    sb.from("bills").select("*").eq("user_id",uid),
+    sb.from("budgets").select("*").eq("user_id",uid),
+    sb.from("goals").select("*").eq("user_id",uid).order("created_at"),
   ]);
   data.categories = cats.data || [];
   data.bills = bills.data || [];
@@ -261,10 +270,11 @@ async function loadStatic(){
 }
 // Dados específicos do mês — recarregados ao trocar de mês (rápido, 2 consultas)
 async function loadPeriodData(){
+  const uid = effUid();
   const { start, end } = periodBounds(period);
   const [pays, txs] = await Promise.all([
-    sb.from("bill_payments").select("*").eq("period", period),
-    sb.from("transactions").select("*").gte("date", start).lte("date", end).order("date", { ascending:false }),
+    sb.from("bill_payments").select("*").eq("user_id",uid).eq("period", period),
+    sb.from("transactions").select("*").eq("user_id",uid).gte("date", start).lte("date", end).order("date", { ascending:false }),
   ]);
   data.payments = pays.data || [];
   data.transactions = txs.data || [];
@@ -477,12 +487,12 @@ async function loadEvolution(){
   const [y,m]=period.split("-").map(Number);
   const startStr = ymOf(new Date(y,m-6,1))+"-01";
   const { end } = periodBounds(period);
-  const { data:rows } = await sb.from("transactions").select("type,amount,date").gte("date",startStr).lte("date",end);
+  const { data:rows } = await sb.from("transactions").select("type,amount,date").eq("user_id",effUid()).gte("date",startStr).lte("date",end);
   const months=[]; for(let i=5;i>=0;i--){ months.push(ymOf(new Date(y,m-1-i,1))); }
   const agg={}; months.forEach(mm=>agg[mm]={inc:0,exp:0});
   (rows||[]).forEach(r=>{ const k=r.date.slice(0,7); if(agg[k]){ r.type==="income"?agg[k].inc+=+r.amount:agg[k].exp+=+r.amount; } });
   // adiciona contas pagas como saídas em cada mês
-  const { data:pays } = await sb.from("bill_payments").select("period,bill_id").gte("period",months[0]).lte("period",period);
+  const { data:pays } = await sb.from("bill_payments").select("period,bill_id").eq("user_id",effUid()).gte("period",months[0]).lte("period",period);
   (pays||[]).forEach(p=>{ const b=data.bills.find(x=>x.id===p.bill_id); if(b && agg[p.period]) agg[p.period].exp += billAmountFor(b, p.period); });
   const rawMax = Math.max(1, ...months.flatMap(mm=>[agg[mm].inc,agg[mm].exp]));
   const niceMax = niceCeil(rawMax);
@@ -551,6 +561,7 @@ function openInvoiceDetails(billId){
   openModal(b.name, body, async()=>{}, ()=>{ $("#inv-close").onclick=()=>{ $("#modal-root").innerHTML=""; }; });
 }
 async function togglePaid(billId){
+  if(readOnly()) return;
   const paid = billPaid({id:billId}, period);
   if(paid){ await sb.from("bill_payments").delete().eq("bill_id",billId).eq("period",period); }
   else { await sb.from("bill_payments").insert({ user_id:state.user.id, bill_id:billId, period }); toast("Conta marcada como paga ✓"); }
@@ -729,6 +740,7 @@ async function maybeCreateCategory(selectEl, type){
 
 /* Transação */
 function openTxModal(type, existing){
+  if(readOnly()) return;
   const isEdit=!!existing; if(existing) type=existing.type;
   const body = `
     ${isEdit?`<div class="seg type-seg"><button type="button" id="t-exp" class="${type!=="income"?"active":""}">Despesa</button><button type="button" id="t-inc" class="${type==="income"?"active":""}">Receita</button></div>`:""}
@@ -757,6 +769,7 @@ function openTxModal(type, existing){
 
 /* Conta */
 function openBillModal(existing){
+  if(readOnly()) return;
   const isEdit=!!existing;
   let invItems = (existing && Array.isArray(existing.items)) ? existing.items.map(x=>({desc:x.desc, category:x.category||"", amount:x.amount, installments:x.installments||""})) : [];
   const body=`
@@ -853,6 +866,7 @@ function openBillModal(existing){
 
 /* Orçamento */
 function openBudgetModal(existing){
+  if(readOnly()) return;
   const isEdit=!!existing;
   const body=`
     <div class="field"><label>Categoria</label><select class="input" id="bg-cat" ${isEdit?"disabled":""}>${catOptions("expense", existing?existing.category:"")}</select>${isEdit?"":catNewMarkup("bg-cat")}</div>
@@ -872,6 +886,7 @@ function openBudgetModal(existing){
 
 /* Meta */
 function openGoalModal(existing){
+  if(readOnly()) return;
   const isEdit=!!existing;
   const body=`
     <div class="field"><label>Nome da meta</label><input class="input" id="g-name" required placeholder="Ex: Viagem, Reserva…" value="${existing?esc(existing.name):""}"></div>
@@ -892,6 +907,7 @@ function openGoalModal(existing){
   });
 }
 function openContribModal(goal){
+  if(readOnly()) return;
   const body=`<p style="color:var(--muted);margin:-4px 0 14px">Quanto você quer guardar em <b>${esc(goal.name)}</b> agora?</p>
     <div class="field"><label>Valor (R$)</label><input class="input num" id="c-amt" type="number" step="0.01" inputmode="decimal" required placeholder="0,00" autofocus></div>
     <button class="btn" type="submit">Guardar</button>`;
@@ -920,16 +936,72 @@ $("#bell").onclick = () => {
   });
 };
 $("#menu-btn").onclick = () => {
-  const body=`
-    <button class="btn ghost" type="button" id="mm-theme" style="justify-content:flex-start;margin-bottom:8px">◐ Alternar tema (claro/escuro)</button>
-    <button class="btn ghost" type="button" id="mm-cats" style="justify-content:flex-start;margin-bottom:8px">${ic('tag',18)} Gerenciar categorias</button>
-    <button class="btn ghost" type="button" id="mm-logout" style="justify-content:flex-start">${ic('logout',18)} Sair da conta</button>`;
+  let body = `<button class="btn ghost" type="button" id="mm-theme" style="justify-content:flex-start;margin-bottom:8px">◐ Alternar tema (claro/escuro)</button>`;
+  if(viewOwner){
+    body += `<button class="btn ghost" type="button" id="mm-exitview" style="justify-content:flex-start;margin-bottom:8px">↩ Voltar às minhas contas</button>`;
+  } else {
+    body += `<button class="btn ghost" type="button" id="mm-photo" style="justify-content:flex-start;margin-bottom:8px">${ic('user',18)} Alterar foto de perfil</button>
+      <button class="btn ghost" type="button" id="mm-share" style="justify-content:flex-start;margin-bottom:8px">${ic('up',18)} Compartilhar minhas contas</button>
+      <button class="btn ghost" type="button" id="mm-shared" style="justify-content:flex-start;margin-bottom:8px">${ic('report',18)} Ver contas de outra pessoa</button>
+      <button class="btn ghost" type="button" id="mm-cats" style="justify-content:flex-start;margin-bottom:8px">${ic('tag',18)} Gerenciar categorias</button>`;
+  }
+  body += `<button class="btn ghost" type="button" id="mm-logout" style="justify-content:flex-start">${ic('logout',18)} Sair da conta</button>`;
   openModal(state.profile.name?`Olá, ${esc(state.profile.name.split(" ")[0])}`:"Menu", body, async()=>{}, ()=>{
     $("#mm-theme").onclick=()=>{ toggleTheme(); };
     $("#mm-logout").onclick=async()=>{ await sb.auth.signOut(); location.reload(); };
-    $("#mm-cats").onclick=()=>{ $("#modal-root").innerHTML=""; openCatsModal(); };
+    $("#mm-photo") && ($("#mm-photo").onclick=pickAvatar);
+    $("#mm-share") && ($("#mm-share").onclick=()=>{ $("#modal-root").innerHTML=""; openShareModal(); });
+    $("#mm-shared") && ($("#mm-shared").onclick=()=>{ $("#modal-root").innerHTML=""; openSharedWithMe(); });
+    $("#mm-cats") && ($("#mm-cats").onclick=()=>{ $("#modal-root").innerHTML=""; openCatsModal(); });
+    $("#mm-exitview") && ($("#mm-exitview").onclick=stopViewing);
   });
 };
+function resizeToDataURL(file,size){ return new Promise((resolve,reject)=>{ const img=new Image(); img.onload=()=>{ const c=document.createElement("canvas"); c.width=c.height=size; const ctx=c.getContext("2d"); const s=Math.min(img.width,img.height); ctx.drawImage(img,(img.width-s)/2,(img.height-s)/2,s,s,0,0,size,size); resolve(c.toDataURL("image/jpeg",0.85)); }; img.onerror=reject; img.src=URL.createObjectURL(file); }); }
+async function pickAvatar(){
+  if(readOnly()) return;
+  const inp=document.createElement("input"); inp.type="file"; inp.accept="image/*";
+  inp.onchange=async()=>{ const f=inp.files&&inp.files[0]; if(!f) return;
+    try{ const dataUrl=await resizeToDataURL(f,256);
+      const { error }=await sb.from("profiles").update({avatar:dataUrl}).eq("id",state.user.id);
+      if(error){ toast(/avatar/.test(error.message)?"Rode o SQL da foto de perfil primeiro":"Não foi possível salvar a foto"); return; }
+      state.profile.avatar=dataUrl; setAvatar(); toast("Foto atualizada!"); $("#modal-root").innerHTML="";
+    }catch(e){ toast("Não foi possível ler a imagem"); }
+  };
+  inp.click();
+}
+async function openShareModal(){
+  const { data:shares, error } = await sb.from("shares").select("*").eq("owner_id",state.user.id).order("created_at");
+  if(error){ toast("Rode o SQL de compartilhamento primeiro"); }
+  const rows=(shares||[]).length ? shares.map(s=>`<div class="item"><div class="grow"><div class="t1">${esc(s.viewer_email)}</div><div class="t2">somente leitura</div></div><button type="button" class="mini" data-delshare="${s.id}">remover</button></div>`).join("") : `<div class="t2" style="padding:8px 0">Você ainda não compartilhou com ninguém.</div>`;
+  const body=`<p style="color:var(--muted);margin:-4px 0 12px;font-size:13.5px">Convide alguém pelo <b>e-mail cadastrado no app</b> para ver suas contas em <b>modo somente leitura</b>. A pessoa precisa ter uma conta no Meu Bolso.</p>
+    <div class="field"><label>E-mail de quem vai visualizar</label><input class="input" id="share-email" type="email" placeholder="email@exemplo.com"></div>
+    <button class="btn" type="submit">Compartilhar</button>
+    <div class="sub" style="margin:16px 0 6px">Quem pode ver suas contas</div>${rows}`;
+  openModal("Compartilhar minhas contas", body, async(close)=>{
+    const email=($("#share-email").value||"").trim().toLowerCase(); if(!email) return;
+    if(email===(state.user.email||"").toLowerCase()){ toast("Esse é o seu próprio e-mail"); return; }
+    const { error }=await sb.from("shares").insert({owner_id:state.user.id, viewer_email:email});
+    if(error){ toast(/duplicate/.test(error.message)?"Já compartilhado com esse e-mail":"Não foi possível compartilhar"); return; }
+    toast("Compartilhado!"); $("#modal-root").innerHTML=""; openShareModal();
+  }, ()=>{
+    $$("[data-delshare]").forEach(el=>el.onclick=async()=>{ await sb.from("shares").delete().eq("id",el.dataset.delshare); $("#modal-root").innerHTML=""; openShareModal(); });
+  });
+}
+async function openSharedWithMe(){
+  const myEmail=(state.user.email||"").toLowerCase();
+  const { data:all, error } = await sb.from("shares").select("owner_id,viewer_email");
+  if(error){ toast("Rode o SQL de compartilhamento primeiro"); return; }
+  const mine=(all||[]).filter(s=>(s.viewer_email||"").toLowerCase()===myEmail);
+  const owners=[...new Set(mine.map(s=>s.owner_id))];
+  let profs=[]; if(owners.length){ const { data:p }=await sb.from("profiles").select("id,name").in("id",owners); profs=p||[]; }
+  const rows = owners.length ? owners.map(oid=>{ const nm=(profs.find(p=>p.id===oid)||{}).name||"Pessoa"; return `<div class="item"><div class="grow"><div class="t1">${esc(nm)}</div><div class="t2">somente leitura</div></div><button type="button" class="btn sm" data-view="${oid}" data-name="${esc(nm)}" style="width:auto">Ver</button></div>`; }).join("") : `<div class="empty">Ninguém compartilhou contas com você ainda.</div>`;
+  openModal("Ver contas de outra pessoa", `<p style="color:var(--muted);margin:-4px 0 12px;font-size:13.5px">Quem te adicionou como visualizador aparece aqui. Você vê os dados em <b>somente leitura</b>.</p>${rows}`, async()=>{}, ()=>{
+    $$("[data-view]").forEach(el=>el.onclick=()=>{ startViewing({id:el.dataset.view, name:el.dataset.name}); });
+  });
+}
+async function startViewing(owner){ viewOwner=owner; document.body.classList.add("viewing"); $("#modal-root").innerHTML=""; currentTab="inicio"; $$("#tabbar a").forEach(x=>x.classList.toggle("active",x.dataset.tab==="inicio")); await enterApp(); }
+function stopViewing(){ viewOwner=null; document.body.classList.remove("viewing"); $("#modal-root").innerHTML=""; enterApp(); }
+function updateViewBanner(){ const b=$("#view-banner"); if(!b) return; if(viewOwner){ b.classList.remove("hidden"); b.innerHTML=`<span>👁 Vendo as contas de <b>${esc(viewOwner.name||"outra pessoa")}</b> · somente leitura</span> <button class="btn sm ghost" type="button" id="exit-view" style="width:auto">Sair</button>`; const ev=$("#exit-view"); if(ev) ev.onclick=stopViewing; } else { b.classList.add("hidden"); b.innerHTML=""; } }
 const DICAS = {
   inicio:["feliz","Pequenas escolhas hoje, grandes conquistas amanhã!"],
   contas:["atencao","Organize os vencimentos e evite surpresas no fim do mês."],

@@ -146,3 +146,47 @@ drop trigger if exists on_auth_user_created on auth.users;
 create trigger on_auth_user_created
   after insert on auth.users
   for each row execute function public.handle_new_user();
+
+-- =========================================================
+-- FOTO DE PERFIL + COMPARTILHAMENTO (modo visualizador)
+-- =========================================================
+alter table public.profiles add column if not exists avatar text;
+
+create table if not exists public.shares (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid not null references auth.users(id) on delete cascade,
+  viewer_email text not null,
+  created_at timestamptz default now(),
+  unique (owner_id, viewer_email)
+);
+alter table public.shares enable row level security;
+
+drop policy if exists "own shares" on public.shares;
+create policy "own shares" on public.shares
+  for all using (auth.uid()=owner_id) with check (auth.uid()=owner_id);
+drop policy if exists "shared with me" on public.shares;
+create policy "shared with me" on public.shares
+  for select using (lower(viewer_email) = lower(auth.jwt()->>'email'));
+
+-- Políticas de LEITURA para quem recebeu compartilhamento
+drop policy if exists "viewer profiles" on public.profiles;
+create policy "viewer profiles" on public.profiles for select using (
+  exists(select 1 from public.shares s where s.owner_id = profiles.id and lower(s.viewer_email)=lower(auth.jwt()->>'email')));
+drop policy if exists "viewer categories" on public.categories;
+create policy "viewer categories" on public.categories for select using (
+  exists(select 1 from public.shares s where s.owner_id = categories.user_id and lower(s.viewer_email)=lower(auth.jwt()->>'email')));
+drop policy if exists "viewer transactions" on public.transactions;
+create policy "viewer transactions" on public.transactions for select using (
+  exists(select 1 from public.shares s where s.owner_id = transactions.user_id and lower(s.viewer_email)=lower(auth.jwt()->>'email')));
+drop policy if exists "viewer bills" on public.bills;
+create policy "viewer bills" on public.bills for select using (
+  exists(select 1 from public.shares s where s.owner_id = bills.user_id and lower(s.viewer_email)=lower(auth.jwt()->>'email')));
+drop policy if exists "viewer bill_payments" on public.bill_payments;
+create policy "viewer bill_payments" on public.bill_payments for select using (
+  exists(select 1 from public.shares s where s.owner_id = bill_payments.user_id and lower(s.viewer_email)=lower(auth.jwt()->>'email')));
+drop policy if exists "viewer budgets" on public.budgets;
+create policy "viewer budgets" on public.budgets for select using (
+  exists(select 1 from public.shares s where s.owner_id = budgets.user_id and lower(s.viewer_email)=lower(auth.jwt()->>'email')));
+drop policy if exists "viewer goals" on public.goals;
+create policy "viewer goals" on public.goals for select using (
+  exists(select 1 from public.shares s where s.owner_id = goals.user_id and lower(s.viewer_email)=lower(auth.jwt()->>'email')));
