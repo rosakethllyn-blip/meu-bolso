@@ -153,7 +153,7 @@ $("#auth-form").onsubmit = async (ev) => {
   btn.disabled = true; const label = btn.querySelector("span").textContent; btn.querySelector("span").textContent = "Aguarde…";
   try{
     if(authMode==="signup"){
-      const { data:d, error } = await sb.auth.signUp({ email, password:pass });
+      const { data:d, error } = await sb.auth.signUp({ email, password:pass, options:{ emailRedirectTo: location.origin + location.pathname } });
       if(error) throw error;
       if(!d.session){ authMsg("Conta criada! Confirme pelo link no seu e-mail e depois entre.","ok"); setAuthMode("login"); return; }
       if(name){ await sb.from("profiles").update({ name }).eq("id", d.user.id); }
